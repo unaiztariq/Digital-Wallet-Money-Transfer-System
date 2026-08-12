@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -30,11 +31,16 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-den2w-wx4_+s#p2()jj3id$owz3jyg8(rd+lbmu_fyi!mxel_h')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Railway deploy sets DJANGO_DEBUG=False; local dev keeps the default True.
+DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
 # 'testserver' is the host django.test.Client uses when run outside the test
-# runner (e.g. scripts/e2e_smoke.py); localhost/127.0.0.1 cover local dev.
-ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
+# runner (e.g. scripts/e2e_smoke.py); localhost/127.0.0.1 cover local dev and
+# Railway's *.up.railway.app domains cover deployed environments. Override
+# with a comma-separated DJANGO_ALLOWED_HOSTS.
+ALLOWED_HOSTS = [
+    host for host in os.getenv('DJANGO_ALLOWED_HOSTS', 'testserver,localhost,127.0.0.1').split(',') if host
+] + ['.up.railway.app']
 
 
 # Application definition
@@ -52,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -83,23 +90,55 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+#
+# Railway (production) passes a full URL: DATABASE_URL (Postgres) or MYSQL_URL
+# (MySQL plugin). Local dev falls back to the DB_* variables, or to SQLite when
+# DB_ENGINE is unset.
+_db_url = os.getenv('DATABASE_URL') or os.getenv('MYSQL_URL')
 
-DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.sqlite3')  # Unset DB_ENGINE falls back to SQLite.
 
-DATABASES = {
-    'default': {
-        'ENGINE': DB_ENGINE,
-        'NAME': os.getenv('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
-        'USER': os.getenv('DB_USER', ''),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', ''),
-        'PORT': os.getenv('DB_PORT', ''),
+def _db_from_url(url):
+    parsed = urlparse(url)
+    scheme = parsed.scheme.lower()
+    if scheme in ('postgres', 'postgresql'):
+        engine = 'django.db.backends.postgresql'
+    elif scheme == 'mysql':
+        engine = 'django.db.backends.mysql'
+    elif scheme == 'sqlite':
+        return {'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': parsed.path[1:] or str(BASE_DIR / 'db.sqlite3')}
+    else:
+        raise ValueError(f'Unsupported database URL scheme: {scheme}')
+    config = {
+        'ENGINE': engine,
+        'NAME': parsed.path[1:],
+        'USER': parsed.username or '',
+        'PASSWORD': parsed.password or '',
+        'HOST': parsed.hostname or '',
+        'PORT': parsed.port or '',
     }
-}
+    if engine == 'django.db.backends.mysql':
+        config['OPTIONS'] = {'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"}
+    return config
 
-# Strict mode ensures MySQL CHECK constraints are enforced; SQLite needs no MySQL options.
-if 'mysql' in DB_ENGINE:
-    DATABASES['default']['OPTIONS'] = {'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"}
+
+if _db_url:
+    DATABASES = {'default': _db_from_url(_db_url)}
+else:
+    DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.sqlite3')  # Unset DB_ENGINE falls back to SQLite.
+    DATABASES = {
+        'default': {
+            'ENGINE': DB_ENGINE,
+            'NAME': os.getenv('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
+            'USER': os.getenv('DB_USER', ''),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', ''),
+            'PORT': os.getenv('DB_PORT', ''),
+        }
+    }
+    # Strict mode ensures MySQL CHECK constraints are enforced; SQLite needs no MySQL options.
+    if 'mysql' in DB_ENGINE:
+        DATABASES['default']['OPTIONS'] = {'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"}
 
 
 # Password validation
@@ -137,6 +176,26 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+# HTTPS / production hardening. Active only when DEBUG is off (Railway deploy).
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 AUTH_USER_MODEL = 'wallet.User'
 

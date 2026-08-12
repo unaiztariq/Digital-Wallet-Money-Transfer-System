@@ -3,5 +3,6 @@ __pycache__/
 *.pyc
 .env
 db.sqlite3
+staticfiles/
 .playwright-mcp/
 .scratch/

@@ -2,9 +2,11 @@ asgiref==3.11.1
 Django==6.0.3
 djangorestframework==3.17.1
 djangorestframework_simplejwt==5.5.1
+gunicorn==26.0.0
 psycopg2-binary==2.9.12
 PyJWT==2.13.0
 PyMySQL==1.2.0
 python-dotenv==1.2.2
 sqlparse==0.5.5
 tzdata==2025.3
+whitenoise==6.12.0
