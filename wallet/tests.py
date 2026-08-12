@@ -43,7 +43,7 @@ from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from wallet.models import Transaction, Wallet, WalletTransaction
+from wallet.models import ExchangeRate, Transaction, Wallet, WalletTransaction
 from wallet.repositories.errors import (InsufficientBalance, InvalidAmount,
     InvalidStateTransition, LimitExceeded, PermissionDenied, SelfTransfer,
     WalletFrozen, WalletNotFound)
@@ -860,14 +860,16 @@ class TransactionDescriptionTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Dashboard: selected-currency totals + fallback
+# Dashboard: PKR-base net total + selected-currency conversion
 # ---------------------------------------------------------------------------
 
 class DashboardCurrencyTotalTests(TestCase):
-    """GET /dashboard/ passes total_balance (sum of the SELECTED currency's
-    wallets), selected_currency and currencies. The default selected currency
-    is the first wallet's currency (falling back to the settings default when
-    the user has no wallets); an invalid ?currency= falls back to the default.
+    """GET /dashboard/ converts every wallet balance to a PKR base
+    (balance * ExchangeRate.get_rates()[currency]), sums it into total_pkr,
+    then re-converts to the selected display currency:
+    total_balance = total_pkr / rates[selected_currency]. The selected
+    currency comes from ?currency= and falls back to
+    settings.DEFAULT_WALLET_CURRENCY when the param is missing or unsupported.
     Uses TestCase's default django.test.Client so response.context is kept."""
 
     def setUp(self):
@@ -884,28 +886,45 @@ class DashboardCurrencyTotalTests(TestCase):
         self.admin_service.adjust_balance(self.admin_user, self.usd_wallet.id,
                                           Decimal('2500.00'), 'Dashboard funding')
 
-    def test_default_selected_currency_is_first_wallet(self):
+    def _pkr_base(self):
+        """PKR base of the seeded user: the 2500.00 USD wallet converted at
+        the seeded USD rate (the PKR wallet contributes 0)."""
+        return Decimal('2500') * ExchangeRate.get_rates()['USD']
+
+    def test_default_selected_currency_is_pkr(self):
         self.client.force_login(self.user)
         r = self.client.get('/dashboard/')
-        # PKR is the first wallet created, so it is selected by default and
-        # its total (0.00) is what the stat card shows.
-        self.assertEqual(r.context['selected_currency'], 'PKR')
-        self.assertEqual(r.context['total_balance'], Decimal('0'))
-        # Rendered HTML: PKR total 0.00 AND the USD wallet card's own 2500.00.
-        self.assertContains(r, '0.00')
+        # The selected display currency is the settings default (PKR), so the
+        # stat card shows the whole portfolio's net value converted to PKR.
+        pkr_base = self._pkr_base()
+        self.assertEqual(r.context['selected_currency'],
+                         settings.DEFAULT_WALLET_CURRENCY)
+        self.assertEqual(r.context['total_balance'], pkr_base)
+        self.assertEqual(r.context['total_pkr'], pkr_base)
+        # Rendered HTML: the USD wallet card keeps its own 2500.00 AND the
+        # PKR stat card shows the converted total with two decimals.
         self.assertContains(r, '2500.00')
+        self.assertContains(r, f'{pkr_base:.2f}')
 
     def test_currency_param_switches_total(self):
         self.client.force_login(self.user)
         r = self.client.get('/dashboard/?currency=USD')
+        # Converting the PKR base back through the USD rate reproduces the
+        # original 2500.00 USD; total_pkr is still the PKR base.
+        pkr_base = self._pkr_base()
         self.assertEqual(r.context['selected_currency'], 'USD')
         self.assertEqual(r.context['total_balance'], Decimal('2500.00'))
+        self.assertEqual(r.context['total_pkr'], pkr_base)
 
-    def test_invalid_currency_falls_back(self):
+    def test_invalid_currency_falls_back_to_default(self):
         self.client.force_login(self.user)
         r = self.client.get('/dashboard/?currency=XXX')
-        self.assertEqual(r.context['selected_currency'], 'PKR')
-        self.assertEqual(r.context['total_balance'], Decimal('0'))
+        # Unsupported codes fall back to the settings default display
+        # currency, so the PKR base is shown unchanged.
+        pkr_base = self._pkr_base()
+        self.assertEqual(r.context['selected_currency'],
+                         settings.DEFAULT_WALLET_CURRENCY)
+        self.assertEqual(r.context['total_balance'], pkr_base)
 
     def test_wallet_less_user_total_zero(self):
         new_user = User.objects.create_user(
@@ -916,6 +935,22 @@ class DashboardCurrencyTotalTests(TestCase):
         self.assertEqual(r.context['total_balance'], Decimal('0'))
         self.assertEqual(r.context['selected_currency'],
                          settings.DEFAULT_WALLET_CURRENCY)
+
+
+class ExchangeRateTests(TestCase):
+    """ExchangeRate.get_rates() exposes a positive seeded rate_to_pkr for
+    every supported currency, with PKR itself pinned at Decimal('1')."""
+
+    def test_get_rates_includes_pkr_as_one(self):
+        self.assertEqual(ExchangeRate.get_rates()['PKR'], Decimal('1'))
+
+    def test_get_rates_covers_all_supported_currencies(self):
+        self.assertEqual(set(ExchangeRate.get_rates()),
+                         set(settings.SUPPORTED_CURRENCIES))
+
+    def test_rates_are_positive(self):
+        self.assertTrue(all(rate > 0
+                            for rate in ExchangeRate.get_rates().values()))
 
 
 class OpenWalletPageTests(TestCase):

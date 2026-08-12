@@ -10,7 +10,7 @@ from django.db import transaction
 from django.shortcuts import redirect, render
 
 from wallet.api.serializers import HistoryFilterSerializer
-from wallet.models import Transaction, User
+from wallet.models import ExchangeRate, Transaction, User, Wallet
 from wallet.repositories.errors import BusinessRuleError, InvalidAmount
 from wallet.services.admin_wallet_service import AdminWalletService
 from wallet.services.transaction_service import TransactionService
@@ -57,17 +57,23 @@ def dashboard(request):
     wallets = _present_wallets(WalletService().list_wallets(request.user))
     history = TransactionService().history(request.user, {}, 1)
     transactions = _present_transactions(request.user, history.items[:5])
-    totals = {}
+    rates = ExchangeRate.get_rates()
+    total_pkr = Decimal('0')
     for wallet in wallets:
-        totals[wallet.currency] = totals.get(wallet.currency, Decimal('0')) + wallet.balance
-    currencies = list(totals)
+        rate = rates.get(wallet.currency)
+        if rate is None:
+            continue
+        total_pkr += wallet.balance * rate
+    currencies = list(settings.SUPPORTED_CURRENCIES)
     selected = (request.GET.get('currency') or '').upper()
-    if selected not in totals:
-        selected = currencies[0] if currencies else settings.DEFAULT_WALLET_CURRENCY
+    if selected not in currencies:
+        selected = settings.DEFAULT_WALLET_CURRENCY
+    total_balance = total_pkr / rates[selected]
     return render(request, 'wallet/dashboard.html', {
         'wallets': wallets,
         'transactions': transactions,
-        'total_balance': totals.get(selected, Decimal('0')),
+        'total_balance': total_balance,
+        'total_pkr': total_pkr,
         'selected_currency': selected,
         'currencies': currencies,
     })

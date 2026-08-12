@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import DailyCounter, IdempotencyRecord, Transaction, User, Wallet, WalletConfiguration, WalletTransaction
+from .models import DailyCounter, ExchangeRate, IdempotencyRecord, Transaction, User, Wallet, WalletConfiguration, WalletTransaction
 
 
 @admin.register(User)
@@ -12,6 +12,11 @@ class UserAdmin(admin.ModelAdmin):
 @admin.register(WalletConfiguration)
 class WalletConfigurationAdmin(admin.ModelAdmin):
     list_display = ('id', 'max_single_deposit', 'max_single_withdrawal', 'max_daily_withdrawal')
+
+
+@admin.register(ExchangeRate)
+class ExchangeRateAdmin(admin.ModelAdmin):
+    list_display = ('currency', 'rate_to_pkr', 'updated_at')
 
 
 @admin.register(Wallet)

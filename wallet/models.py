@@ -43,6 +43,31 @@ class WalletConfiguration(models.Model):
         return config
 
 
+class ExchangeRate(models.Model):
+    currency = models.CharField(max_length=3, primary_key=True)
+    rate_to_pkr = models.DecimalField(max_digits=20, decimal_places=8)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Spec rates (must match migrations/0004_exchange_rate.py).
+    # get_or_create makes rates self-healing: TransactionTestCase's flush
+    # wipes seeded rows between tests, so freshly created rows use spec rates.
+    _DEFAULTS = {
+        'USD': Decimal('278.50000000'),
+        'EUR': Decimal('301.00000000'),
+        'GBP': Decimal('350.00000000'),
+        'JPY': Decimal('1.85000000'),
+        'CHF': Decimal('312.00000000'),
+    }
+
+    @classmethod
+    def get_rates(cls) -> dict:
+        rates = {'PKR': Decimal('1')}
+        for code, rate in cls._DEFAULTS.items():
+            row, _ = cls.objects.get_or_create(currency=code, defaults={'rate_to_pkr': rate})
+            rates[code] = row.rate_to_pkr
+        return rates
+
+
 class Wallet(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
