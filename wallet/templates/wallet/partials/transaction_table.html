@@ -1,0 +1,65 @@
+{% comment %}
+Dense transaction table used on dashboard, transactions and admin pages.
+
+Context:
+  transactions — list/queryset of transaction objects with:
+                 .created_at, .reference, .description, .type,
+                 .get_type_display, .status, .amount (Decimal, signed),
+                 .direction ('CREDIT' | 'DEBIT' — optional, used for
+                 coloring when present), .sender, .recipient
+{% endcomment %}
+<div class="table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th class="col-time">Time</th>
+        <th class="col-reference">Reference / memo</th>
+        <th class="col-type">Type</th>
+        <th class="col-status">Status</th>
+        <th class="col-amount text-right">Amount</th>
+        <th>From → To</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions %}
+      <tr>
+        <td class="time">{{ tx.created_at|date:"Y-m-d H:i" }}</td>
+
+        <td>
+          <div class="reference mono">{{ tx.reference|default:"—" }}</div>
+          <div class="memo">{{ tx.description|truncatechars:40|default:"—" }}</div>
+        </td>
+
+        <td>{{ tx.get_type_display|default:tx.type|default:"—" }}</td>
+
+        <td>
+          {% include "wallet/partials/status_badge.html" with status=tx.status %}
+        </td>
+
+        <td class="amount
+          {% if tx.direction == 'CREDIT' or tx.direction == 'INCOMING' or tx.amount is not None and tx.amount >= 0 %}amount-credit{% else %}amount-debit{% endif %}">
+          {% if tx.direction == 'CREDIT' or tx.direction == 'INCOMING' or tx.amount is not None and tx.amount >= 0 %}+{% else %}-{% endif %}{{ tx.amount|floatformat:2 }}
+        </td>
+
+        <td>
+          <span class="mono">
+            {% if tx.sender %}{{ tx.sender.username }}{% else %}—{% endif %}
+            →
+            {% if tx.recipient %}{{ tx.recipient.username }}{% else %}—{% endif %}
+          </span>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6">
+          <div class="empty-state">
+            <span class="empty-state-icon"><i class="ti ti-inbox"></i></span>
+            <span class="empty-state-title">No transactions found</span>
+            <span class="empty-state-copy">Transactions will appear here once there is wallet activity.</span>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

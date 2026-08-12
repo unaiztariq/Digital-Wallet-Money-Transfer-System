@@ -1,0 +1,306 @@
+{% extends "wallet/base.html" %}
+{% load static %}
+
+{% block title %}Wallet — Admin console{% endblock %}
+
+{% block page_title %}Admin console{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">User, wallet and transaction controls.</p>
+{% endblock %}
+
+{% block content %}
+
+{% if request.user.role != 'ADMIN' %}
+
+<div class="panel">
+  <div class="card-body">
+    <div class="empty-state">
+      <span class="empty-state-icon"><i class="ti ti-shield-lock"></i></span>
+      <span class="empty-state-title">Access restricted</span>
+      <span class="empty-state-copy">The admin console is available to administrators only.</span>
+    </div>
+  </div>
+</div>
+
+{% else %}
+
+<div class="role-note mb-5">
+  <i class="ti ti-shield-check"></i>
+  <span>
+    <strong>Server-side:</strong> authorization is enforced in Django — this
+    console complements, not replaces, the API guards.
+  </span>
+</div>
+
+<div class="stack">
+
+  {# ---------------------------------------------------------------- #}
+  {# Users                                                             #}
+  {# ---------------------------------------------------------------- #}
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Users</div>
+        <div class="panel-subtitle">Accounts and roles</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th class="col-time">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td class="reference">{{ u.username }}</td>
+              <td class="text-muted">{{ u.email|default:"—" }}</td>
+              <td>{{ u.get_role_display|default:u.role|default:"—" }}</td>
+              <td>
+                {% if u.is_active %}
+                <span class="wallet-status"><span class="wallet-status-dot"></span>ACTIVE</span>
+                {% else %}
+                <span class="wallet-status wallet-status--closed"><span class="wallet-status-dot"></span>DISABLED</span>
+                {% endif %}
+              </td>
+              <td class="time">{{ u.date_joined|date:"Y-m-d"|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5"><div class="empty-state"><span class="empty-state-title">No users</span></div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  {# ---------------------------------------------------------------- #}
+  {# Wallets: freeze/unfreeze + adjust balance                          #}
+  {# ---------------------------------------------------------------- #}
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Wallets</div>
+        <div class="panel-subtitle">Freeze / unfreeze and adjust balances</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Wallet</th>
+              <th>User</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th class="col-amount">Balance</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for w in wallets %}
+            <tr>
+              <td class="reference mono">#{{ w.id }}</td>
+              <td>{{ w.owner.username }}</td>
+              <td>{{ w.currency }}</td>
+              <td>
+                <span class="wallet-status{% if w.status == 'FROZEN' %} wallet-status--frozen{% elif w.status == 'CLOSED' %} wallet-status--closed{% endif %}">
+                  <span class="wallet-status-dot"></span>{{ w.get_status_display|default:w.status }}
+                </span>
+              </td>
+              <td class="amount mono">{{ w.balance|floatformat:2 }}</td>
+              <td>
+                {% if w.status != 'CLOSED' %}
+                <button
+                  type="button"
+                  class="toggle-pill{% if w.status == 'FROZEN' %} is-active{% endif %}"
+                  aria-label="{% if w.status == 'FROZEN' %}Unfreeze{% else %}Freeze{% endif %} wallet #{{ w.id }}"
+                  aria-pressed="{% if w.status == 'FROZEN' %}true{% else %}false{% endif %}"
+                  data-wallet-confirm="{% if w.status == 'FROZEN' %}Unfreeze this wallet? Existing accounts will be able to transact again.{% else %}Freeze this wallet? Existing funds remain, but new transactions will be rejected.{% endif %}"
+                  hx-post="/api/admin/wallets/{{ w.id }}/{% if w.status == 'FROZEN' %}unfreeze{% else %}freeze{% endif %}/"
+                  hx-swap="none"
+                  data-admin-action
+                ></button>
+                {% else %}
+                <span class="text-muted">Locked</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td colspan="6" style="border-top: 0; padding-top: 0;">
+                <form
+                  class="adjust-balance"
+                  data-adjust-form
+                  data-url="/api/admin/wallets/{{ w.id }}/adjust-balance/"
+                  data-wallet-name="#{{ w.id }} · {{ w.owner.username }} ({{ w.currency }})"
+                >
+                  {% csrf_token %}
+                  <div class="flex items-center gap-3" style="flex-wrap: wrap;">
+                    <div class="form-field" style="flex: 0 0 170px; margin: 0;">
+                      <label class="form-label" for="adj-amount-{{ w.id }}">Amount</label>
+                      <div class="input-with-prefix">
+                        <span class="input-prefix">{{ w.currency }}</span>
+                        <input
+                          class="input mono-tabular"
+                          id="adj-amount-{{ w.id }}"
+                          name="amount"
+                          type="number"
+                          inputmode="decimal"
+                          step="0.01"
+                          placeholder="0.00"
+                          required
+                        >
+                      </div>
+                    </div>
+                    <div class="form-field" style="flex: 1 1 260px; margin: 0;">
+                      <label class="form-label" for="adj-reason-{{ w.id }}">Reason</label>
+                      <input
+                        class="input"
+                        id="adj-reason-{{ w.id }}"
+                        name="reason"
+                        type="text"
+                        maxlength="200"
+                        placeholder="Required audit reason"
+                        required
+                      >
+                    </div>
+                    <div style="padding-top: 20px;">
+                      <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="ti ti-adjustments"></i>
+                        <span class="btn-label">Adjust</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="form-help">Negative amounts debit the wallet; positive amounts credit it.</div>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6"><div class="empty-state"><span class="empty-state-title">No wallets</span></div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  {# ---------------------------------------------------------------- #}
+  {# All transactions                                                   #}
+  {# ---------------------------------------------------------------- #}
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">All transactions</div>
+        <div class="panel-subtitle">
+          {% if admin_status %}{{ admin_status }} only{% else %}Full history{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+
+      {# Quick chips — server-rendered anchors, no JS needed. #}
+      <div class="filter-bar" data-filter-group>
+        <div class="filter-chips">
+          <a class="filter-chip{% if admin_status == 'FAILED' %} active{% endif %}" href="{% url 'admin_console' %}?status=FAILED">Investigate failed</a>
+          <a class="filter-chip{% if admin_status == 'PENDING' %} active{% endif %}" href="{% url 'admin_console' %}?status=PENDING">Pending</a>
+          <a class="filter-chip{% if admin_status == 'COMPLETED' %} active{% endif %}" href="{% url 'admin_console' %}?status=COMPLETED">Completed</a>
+          <a class="filter-chip{% if not admin_status %} active{% endif %}" href="{% url 'admin_console' %}">All</a>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        {% include "wallet/partials/transaction_table.html" with transactions=admin_transactions %}
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Freeze / unfreeze: confirm with the app dialog before the hx request fires.
+    document.body.addEventListener('htmx:confirm', function (event) {
+      var elt = event.detail.elt;
+      if (!elt || !elt.hasAttribute('data-wallet-confirm')) { return; }
+      event.preventDefault();
+      window.walletConfirm(elt.dataset.walletConfirm, {
+        title: 'Confirm action',
+        onConfirm: function () {
+          event.detail.issueRequest(true);
+        }
+      });
+    });
+
+    // Freeze / unfreeze: toast the API result, then refresh the page.
+    document.body.addEventListener('htmx:afterRequest', function (event) {
+      var elt = event.detail.elt;
+      if (!elt || !elt.hasAttribute('data-admin-action')) { return; }
+
+      var message = null;
+      try {
+        var body = JSON.parse(event.detail.xhr.responseText);
+        message = body.detail || body.message || null;
+      } catch (error) { /* non-JSON response */ }
+
+      if (event.detail.successful) {
+        window.walletToast(message || 'Wallet updated.', 'success');
+        setTimeout(function () { window.location.reload(); }, 900);
+      } else {
+        window.walletToast(message || 'Request failed.', 'error');
+      }
+    });
+
+    // Adjust balance: confirm, POST via walletApiPost, toast, refresh.
+    document.querySelectorAll('[data-adjust-form]').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        var formData = new FormData(form);
+        var data = {
+          amount: formData.get('amount'),
+          reason: formData.get('reason')
+        };
+
+        if (data.amount === null || data.amount === '' || !data.reason) {
+          window.walletToast('Amount and reason are required.', 'error');
+          return;
+        }
+
+        var submitButton = form.querySelector('button[type="submit"]');
+
+        window.walletConfirm(
+          'Apply an adjustment of ' + data.amount + ' to wallet ' + form.dataset.walletName + '?',
+          {
+            title: 'Confirm adjustment',
+            onConfirm: function () {
+              if (submitButton) { submitButton.disabled = true; }
+              window.walletApiPost(form.dataset.url, data)
+                .then(function (result) {
+                  window.walletToast(result.message || result.detail || 'Balance adjusted.', 'success');
+                  setTimeout(function () { window.location.reload(); }, 900);
+                })
+                .catch(function (error) {
+                  window.walletToast(error.message || 'Adjustment failed.', 'error');
+                  if (submitButton) { submitButton.disabled = false; }
+                });
+            }
+          }
+        );
+      });
+    });
+  });
+</script>
+{% endblock %}

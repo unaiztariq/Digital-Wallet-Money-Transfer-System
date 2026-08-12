@@ -1,0 +1,178 @@
+{% extends "wallet/base.html" %}
+{% load static %}
+
+{% block title %}Wallet — Withdraw{% endblock %}
+
+{% block page_title %}Withdraw{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">Move funds out of your wallet.</p>
+{% endblock %}
+
+{% block content %}
+
+{% with wallet=selected_wallet|default:wallets.0 %}
+{% if wallet %}
+
+<div class="panel" style="max-width: 560px;">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Withdraw funds</div>
+      <div class="panel-subtitle">
+        {{ wallet.currency }} wallet · balance {{ wallet.balance|floatformat:2 }}
+      </div>
+    </div>
+    <span class="mono text-muted">POST /withdraw</span>
+  </div>
+
+  <div class="card-body">
+
+    {# Hidden balance carrier read by app.js live-preview hook. #}
+    <span hidden data-current-balance="{{ wallet.balance|floatformat:2 }}"></span>
+
+    <form
+      id="withdraw-form"
+      class="form"
+      method="post"
+      action="/api/wallets/{{ wallet.id }}/withdraw/"
+    >
+      {% csrf_token %}
+
+      <div class="form-grid">
+
+        <div class="form-field full">
+          <label class="form-label" for="wd-wallet">Wallet</label>
+          <input
+            class="input mono"
+            id="wd-wallet"
+            type="text"
+            value="{{ wallet.currency }} · #{{ wallet.id }}"
+            disabled
+          >
+        </div>
+
+        <div class="form-field">
+          <label class="form-label form-label-required" for="wd-amount">Amount</label>
+          <div class="input-with-prefix">
+            <span class="input-prefix">{{ wallet.currency }}</span>
+            <input
+              class="input mono-tabular"
+              id="wd-amount"
+              name="amount"
+              type="number"
+              inputmode="decimal"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              data-live-amount
+              data-amount-operation="subtract"
+              required
+            >
+          </div>
+        </div>
+
+        <div class="form-field full">
+          <div class="balance-preview">
+            <span class="balance-preview-label">New balance</span>
+            <span class="balance-preview-value" data-preview="new-balance">{{ wallet.balance|floatformat:2 }}</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="role-note mt-4">
+        <i class="ti ti-lock"></i>
+        <span>
+          <strong>Idempotency:</strong> every submission sends a unique
+          <span class="mono">Idempotency-Key</span> header so a retry can
+          never debit twice.
+        </span>
+      </div>
+
+      <div class="form-actions mt-4">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          onclick="this.form.reset(); if (window.walletInit) window.walletInit(document);"
+        >
+          Clear
+        </button>
+        <button type="submit" class="btn btn-primary" id="wd-submit">
+          <i class="ti ti-arrow-up-left"></i>
+          <span class="btn-label">Withdraw</span>
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{% else %}
+<div class="panel">
+  <div class="card-body">
+    <div class="empty-state">
+      <span class="empty-state-icon"><i class="ti ti-wallet-off"></i></span>
+      <span class="empty-state-title">No wallet available</span>
+      <span class="empty-state-copy">Create a wallet before you can withdraw funds.</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endwith %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('withdraw-form');
+    if (!form) { return; }
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      var formData = new FormData(form);
+      var data = { amount: formData.get('amount') };
+
+      if (!data.amount || Number(data.amount) <= 0) {
+        window.walletToast('Enter a valid amount.', 'error');
+        return;
+      }
+
+      var carrier = document.querySelector('[data-current-balance]');
+      var currentBalance = carrier ? Number(carrier.dataset.currentBalance) : 0;
+      if (Number(data.amount) > currentBalance) {
+        window.walletToast('Amount exceeds your available balance.', 'error');
+        return;
+      }
+
+      var submitButton = document.getElementById('wd-submit');
+      submitButton.disabled = true;
+
+      window.walletApiPost(form.action, data)
+        .then(function (result) {
+          window.walletToast(result.message || result.detail || 'Withdrawal successful.', 'success');
+
+          var newBalance = result.new_balance !== undefined ? result.new_balance : result.balance;
+          if (newBalance !== undefined) {
+            var preview = document.querySelector('[data-preview="new-balance"]');
+            if (carrier) { carrier.dataset.currentBalance = String(newBalance); }
+            if (preview) {
+              preview.textContent = window.walletFormatAmount
+                ? window.walletFormatAmount(newBalance)
+                : Number(newBalance).toFixed(2);
+            }
+          }
+
+          setTimeout(function () { window.location.reload(); }, 1200);
+        })
+        .catch(function (error) {
+          window.walletToast(error.message || 'Withdrawal failed.', 'error');
+        })
+        .finally(function () {
+          submitButton.disabled = false;
+        });
+    });
+  });
+</script>
+{% endblock %}

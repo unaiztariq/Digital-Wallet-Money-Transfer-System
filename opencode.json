@@ -1,0 +1,53 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "external_directory": {
+      "*": "deny",
+      "C:\\Users\\Unaiz Khan\\Downloads\\terminal_wallet_full_dashboard.html": "allow",
+      "C:\\Users\\Unaiz Khan\\.config\\opencode\\opencode.jsonc": "allow",
+      "C:\\Users\\Unaiz Khan\\.config\\opencode\\agent\\senior.md": "allow"
+    },
+    "read": {
+      "*": "allow",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/.ssh/**": "deny",
+      "**/.aws/**": "deny",
+      "**/.config/gcloud/**": "deny",
+      "**/.azure/**": "deny",
+      "**/.gnupg/**": "deny",
+      "**/.git-credentials": "deny",
+      "**/.netrc": "deny",
+      "**/.npmrc": "deny",
+      "**/.pypirc": "deny",
+      "**/.docker/config.json": "deny",
+      "**/.config/gh/**": "deny",
+      "**/id_rsa*": "deny",
+      "**/id_ed25519*": "deny",
+      "**/*.pem": "deny",
+      "**/*.key": "deny"
+    },
+    "edit": {
+      "*": "allow",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/.git/**": "deny",
+      "C:\\Users\\Unaiz Khan\\Downloads\\terminal_wallet_full_dashboard.html": "deny"
+    },
+    "bash": {
+      "*": "ask",
+      "python manage.py *": "allow",
+      "python -m venv *": "allow",
+      ".venv/*": "allow",
+      "venv/*": "allow",
+      "pip install -r requirements*.txt": "allow",
+      "pytest*": "allow",
+      "git push": "deny",
+      "git push *": "deny",
+      "rm -rf *": "deny",
+      "chmod *": "deny",
+      "chown *": "deny",
+      "sudo *": "deny"
+    }
+  }
+}

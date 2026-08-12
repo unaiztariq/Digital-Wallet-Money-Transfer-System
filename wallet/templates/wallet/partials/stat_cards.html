@@ -1,0 +1,57 @@
+{% comment %}
+Context (all optional; each card only renders when its data is provided):
+  total_balance      — Decimal, sum across wallets (preferred)
+  wallets            — list/queryset; falls back to wallets.0.balance when
+                       total_balance is absent
+  currency           — String, display currency for the balance card
+  daily_limit_used   — Decimal
+  daily_limit_max    — Decimal (card renders only when this is provided)
+  pending_count      — int (card renders only when provided)
+  flagged_count      — int (card renders only when provided)
+{% endcomment %}
+<section class="stats-grid" aria-label="Wallet statistics">
+
+  {% if total_balance is not None or wallets %}
+  <article class="stat-card">
+    <div class="stat-label">Available balance</div>
+    <div class="stat-value mono">
+      {% if total_balance is not None %}{{ total_balance|floatformat:2 }}
+      {% elif wallets %}{{ wallets.0.balance|floatformat:2 }}
+      {% else %}0.00{% endif %}
+    </div>
+    <div class="stat-meta">
+      {% if wallets %}{{ wallets.0.currency }} wallet{% if wallets|length > 1 %} · {{ wallets|length }} wallets{% endif %}
+      {% else %}{{ currency|default:"USD" }}{% endif %}
+    </div>
+  </article>
+  {% endif %}
+
+  {% if daily_limit_max is not None %}
+  <article class="stat-card">
+    <div class="stat-label">Daily limit</div>
+    <div class="stat-value mono">
+      {{ daily_limit_used|default:0|floatformat:2 }} / {{ daily_limit_max|floatformat:2 }}
+    </div>
+    <div class="stat-meta">
+      Outgoing-transfer limit
+    </div>
+  </article>
+  {% endif %}
+
+  {% if pending_count is not None %}
+  <article class="stat-card">
+    <div class="stat-label">Pending</div>
+    <div class="stat-value mono">{{ pending_count }}</div>
+    <div class="stat-meta">Awaiting settlement</div>
+  </article>
+  {% endif %}
+
+  {% if flagged_count is not None %}
+  <article class="stat-card">
+    <div class="stat-label">Flagged</div>
+    <div class="stat-value mono">{{ flagged_count }}</div>
+    <div class="stat-meta">Requires review</div>
+  </article>
+  {% endif %}
+
+</section>

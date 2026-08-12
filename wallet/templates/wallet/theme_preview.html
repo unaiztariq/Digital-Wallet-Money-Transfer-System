@@ -1,0 +1,1529 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>Wallet — Terminal Dashboard</title>
+
+  <!-- Google Fonts -->
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- Tabler Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"
+  >
+
+  <!--
+    Integration note for the Django agent:
+    these two links become {% load static %} + {% static 'wallet/css/theme.css' %}
+    and {% static 'wallet/js/app.js' %} in the real templates.
+  -->
+  <link rel="stylesheet" href="theme.css">
+</head>
+
+<body data-command-shortcuts="false">
+
+  <div class="app-shell">
+
+    <!-- ================================================================
+         SIDEBAR
+         ================================================================ -->
+
+    <aside class="sidebar">
+
+      <div class="sidebar-header">
+        <a href="#" class="sidebar-brand" aria-label="Wallet home">
+          <span class="sidebar-brand-mark">$</span>
+          <span class="sidebar-brand-name">wallet</span>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Primary navigation">
+
+        <div class="sidebar-section-label">
+          Workspace
+        </div>
+
+        <a
+          href="#overview"
+          class="sidebar-nav-item active"
+          aria-current="page"
+        >
+          <i class="ti ti-layout-dashboard"></i>
+          <span class="sidebar-nav-item-label">Overview</span>
+        </a>
+
+        <a href="#transfers" class="sidebar-nav-item">
+          <i class="ti ti-arrow-up-right"></i>
+          <span class="sidebar-nav-item-label">Transfers</span>
+        </a>
+
+        <a href="#transactions" class="sidebar-nav-item">
+          <i class="ti ti-list-details"></i>
+          <span class="sidebar-nav-item-label">Transactions</span>
+        </a>
+
+        <div class="sidebar-section-label">
+          Administration
+        </div>
+
+        <a href="#admin" class="sidebar-nav-item">
+          <i class="ti ti-shield"></i>
+          <span class="sidebar-nav-item-label">Admin</span>
+        </a>
+
+      </nav>
+
+      <div class="sidebar-footer">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm w-full"
+          data-modal-open="#profile-modal"
+        >
+          <i class="ti ti-user"></i>
+          <span class="btn-label">Account</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ================================================================
+         MAIN
+         ================================================================ -->
+
+    <main class="main">
+
+      <!-- Top status strip -->
+      <div class="top-status-strip">
+
+        <div class="status-strip-left">
+          <span class="status-strip-item">
+            <span class="status-strip-dot"></span>
+            System operational
+          </span>
+
+          <span class="status-strip-item">
+            <span>Wallet</span>
+            <span class="mono">WLT-8F20A1</span>
+          </span>
+        </div>
+
+        <div class="status-strip-right">
+          <span class="status-strip-item">
+            Role
+            <strong>ADMIN</strong>
+          </span>
+
+          <span class="status-strip-item">
+            <i class="ti ti-clock"></i>
+            <span class="mono">00:35:12 PKT</span>
+          </span>
+        </div>
+
+      </div>
+
+      <!-- Command bar -->
+      <div class="command-bar-wrap">
+        <button
+          type="button"
+          class="command-bar w-full"
+          aria-label="Open command palette"
+          onclick="walletOpenCommandPalette()"
+        >
+          <i class="ti ti-search command-bar-icon"></i>
+
+          <span class="command-bar-placeholder">
+            Search transactions, references, commands...
+          </span>
+
+          <span class="command-bar-shortcut">
+            <span>⌘</span>
+            <span>K</span>
+          </span>
+        </button>
+      </div>
+
+      <div class="page">
+
+        <!-- ============================================================
+             PAGE HEADER
+             ============================================================ -->
+
+        <header class="page-header" id="overview">
+
+          <div class="page-header-copy">
+            <h1 class="page-title">Wallet overview</h1>
+
+            <p class="page-subtitle">
+              Current balance, transaction activity and transfer controls.
+            </p>
+          </div>
+
+          <div class="page-actions">
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-modal-open="#quick-transfer-modal"
+            >
+              <i class="ti ti-arrow-up-right"></i>
+              Transfer
+            </button>
+
+            <button
+              type="button"
+              class="btn"
+              onclick="walletToast('Export queued for processing.', 'success')"
+            >
+              <i class="ti ti-download"></i>
+              Export
+            </button>
+          </div>
+
+        </header>
+
+        <!-- ============================================================
+             STAT CARDS
+             ============================================================ -->
+
+        <section
+          class="stats-grid"
+          aria-label="Wallet statistics"
+        >
+
+          <article class="stat-card">
+            <div class="stat-label">Available balance</div>
+
+            <div class="stat-value mono">
+              $12,480.32
+            </div>
+
+            <div class="stat-meta">
+              ACTIVE wallet
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-label">Daily limit</div>
+
+            <div class="stat-value mono">
+              $3,750 / $5,000
+            </div>
+
+            <div class="stat-meta">
+              $1,250 remaining
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-label">Pending</div>
+
+            <div class="stat-value mono">
+              2
+            </div>
+
+            <div class="stat-meta">
+              Awaiting settlement
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-label">Flagged</div>
+
+            <div class="stat-value mono">
+              1
+            </div>
+
+            <div class="stat-meta">
+              Requires review
+            </div>
+          </article>
+
+        </section>
+
+        <!-- ============================================================
+             TRANSACTIONS
+             ============================================================ -->
+
+        <section id="transactions" class="panel">
+
+          <div class="panel-header">
+
+            <div>
+              <div class="panel-title">
+                Recent transactions
+              </div>
+
+              <div class="panel-subtitle">
+                Latest wallet activity
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              onclick="walletToast('Transaction list refreshed.', 'success')"
+            >
+              <i class="ti ti-refresh"></i>
+              Refresh
+            </button>
+
+          </div>
+
+          <div class="card-body">
+
+            <!-- Filters -->
+            <div
+              class="filter-bar"
+              data-filter-group
+            >
+
+              <div class="filter-chips">
+
+                <button
+                  type="button"
+                  class="filter-chip active"
+                  data-filter="all"
+                >
+                  All
+                </button>
+
+                <button
+                  type="button"
+                  class="filter-chip"
+                  data-filter="incoming"
+                >
+                  Incoming
+                </button>
+
+                <button
+                  type="button"
+                  class="filter-chip"
+                  data-filter="outgoing"
+                >
+                  Outgoing
+                </button>
+
+                <button
+                  type="button"
+                  class="filter-chip"
+                  data-filter="flagged"
+                >
+                  Flagged
+                  <span class="mono">1</span>
+                </button>
+
+              </div>
+
+              <div class="bulk-actions">
+
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  onclick="walletToast('2 transactions selected.', 'info')"
+                >
+                  <i class="ti ti-checks"></i>
+                  Bulk actions
+                </button>
+
+              </div>
+
+            </div>
+
+            <!-- Transaction table -->
+            <div class="table-wrap">
+
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-check">
+                      <input
+                        class="table-checkbox"
+                        type="checkbox"
+                        aria-label="Select all transactions"
+                      >
+                    </th>
+
+                    <th class="col-time">
+                      Time
+                    </th>
+
+                    <th class="col-reference">
+                      Reference / memo
+                    </th>
+
+                    <th class="col-type">
+                      Type
+                    </th>
+
+                    <th class="col-status">
+                      Status
+                    </th>
+
+                    <th class="col-amount text-right">
+                      Amount
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  <tr>
+                    <td>
+                      <input
+                        class="table-checkbox"
+                        type="checkbox"
+                        aria-label="Select transaction"
+                      >
+                    </td>
+
+                    <td class="time">
+                      00:21:14
+                    </td>
+
+                    <td>
+                      <div class="reference">
+                        TXN-7B2A4D8C91E012AF
+                      </div>
+                      <div class="memo">
+                        Coffee shop
+                      </div>
+                    </td>
+
+                    <td>
+                      TRANSFER
+                    </td>
+
+                    <td>
+                      <span class="status-badge status-badge--completed">
+                        COMPLETED
+                      </span>
+                    </td>
+
+                    <td class="amount amount-debit">
+                      -$24.80
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <input
+                        class="table-checkbox"
+                        type="checkbox"
+                        aria-label="Select transaction"
+                      >
+                    </td>
+
+                    <td class="time">
+                      23:54:07
+                    </td>
+
+                    <td>
+                      <div class="reference">
+                        TXN-2FA90C31B40DE7A1
+                      </div>
+                      <div class="memo">
+                        Payroll deposit
+                      </div>
+                    </td>
+
+                    <td>
+                      DEPOSIT
+                    </td>
+
+                    <td>
+                      <span class="status-badge status-badge--completed">
+                        COMPLETED
+                      </span>
+                    </td>
+
+                    <td class="amount amount-credit">
+                      +$2,450.00
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <input
+                        class="table-checkbox"
+                        type="checkbox"
+                        aria-label="Select transaction"
+                      >
+                    </td>
+
+                    <td class="time">
+                      22:43:51
+                    </td>
+
+                    <td>
+                      <div class="reference">
+                        TXN-A82D1C40FE2938B7
+                      </div>
+                      <div class="memo">
+                        Transfer to A. Khan
+                      </div>
+                    </td>
+
+                    <td>
+                      TRANSFER
+                    </td>
+
+                    <td>
+                      <span class="status-badge status-badge--pending">
+                        PENDING
+                      </span>
+                    </td>
+
+                    <td class="amount amount-debit">
+                      -$750.00
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <input
+                        class="table-checkbox"
+                        type="checkbox"
+                        aria-label="Select transaction"
+                      >
+                    </td>
+
+                    <td class="time">
+                      21:08:33
+                    </td>
+
+                    <td>
+                      <div class="reference">
+                        TXN-03C8F20AB1D744E9
+                      </div>
+                      <div class="memo">
+                        ATM withdrawal
+                      </div>
+                    </td>
+
+                    <td>
+                      WITHDRAWAL
+                    </td>
+
+                    <td>
+                      <span class="status-badge status-badge--failed">
+                        FAILED
+                      </span>
+                    </td>
+
+                    <td class="amount amount-debit">
+                      -$300.00
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <input
+                        class="table-checkbox"
+                        type="checkbox"
+                        aria-label="Select transaction"
+                      >
+                    </td>
+
+                    <td class="time">
+                      19:42:18
+                    </td>
+
+                    <td>
+                      <div class="reference">
+                        TXN-98B02A7E1F8C44D0
+                      </div>
+                      <div class="memo">
+                        Transfer reversed
+                      </div>
+                    </td>
+
+                    <td>
+                      TRANSFER
+                    </td>
+
+                    <td>
+                      <span class="status-badge status-badge--cancelled">
+                        CANCELLED
+                      </span>
+                    </td>
+
+                    <td class="amount amount-debit">
+                      -$125.50
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <input
+                        class="table-checkbox"
+                        type="checkbox"
+                        aria-label="Select transaction"
+                      >
+                    </td>
+
+                    <td class="time">
+                      18:03:41
+                    </td>
+
+                    <td>
+                      <div class="reference">
+                        TXN-72F01A9D5C0BE214
+                      </div>
+                      <div class="memo">
+                        Manual wallet adjustment
+                      </div>
+                    </td>
+
+                    <td>
+                      ADJUSTMENT
+                    </td>
+
+                    <td>
+                      <span class="status-badge status-badge--completed">
+                        COMPLETED
+                      </span>
+                    </td>
+
+                    <td class="amount amount-credit">
+                      +$500.00
+                    </td>
+                  </tr>
+
+                </tbody>
+              </table>
+
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ============================================================
+             TRANSFER + DEPOSIT/WITHDRAW
+             ============================================================ -->
+
+        <div class="content-grid mt-5">
+
+          <!-- Transfer -->
+          <section
+            id="transfers"
+            class="panel"
+          >
+
+            <div class="panel-header">
+
+              <div>
+                <div class="panel-title">
+                  Create transfer
+                </div>
+
+                <div class="panel-subtitle">
+                  Send funds to another wallet
+                </div>
+              </div>
+
+              <span class="mono text-muted">
+                POST /transfers
+              </span>
+
+            </div>
+
+            <div class="card-body">
+
+              <form
+                class="form"
+                data-amount-operation="subtract"
+                onsubmit="event.preventDefault(); walletToast('Transfer submitted for review.', 'success');"
+              >
+
+                <div class="form-grid">
+
+                  <div class="form-field full">
+                    <label
+                      class="form-label form-label-required"
+                      for="recipient"
+                    >
+                      Recipient wallet
+                    </label>
+
+                    <input
+                      class="input mono"
+                      id="recipient"
+                      name="recipient"
+                      type="text"
+                      placeholder="WLT-XXXXXXXXXXXXXXXX"
+                      autocomplete="off"
+                      required
+                    >
+
+                    <div class="form-help">
+                      Enter the destination wallet identifier.
+                    </div>
+                  </div>
+
+                  <div class="form-field">
+
+                    <label
+                      class="form-label form-label-required"
+                      for="transfer-amount"
+                    >
+                      Amount
+                    </label>
+
+                    <div class="input-with-prefix">
+                      <span class="input-prefix">$</span>
+
+                      <input
+                        class="input mono-tabular"
+                        id="transfer-amount"
+                        name="amount"
+                        type="number"
+                        inputmode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        data-live-amount
+                        data-amount-operation="subtract"
+                        required
+                      >
+                    </div>
+
+                  </div>
+
+                  <div class="form-field">
+
+                    <label
+                      class="form-label"
+                      for="transfer-description"
+                    >
+                      Description
+                    </label>
+
+                    <input
+                      class="input"
+                      id="transfer-description"
+                      name="description"
+                      type="text"
+                      maxlength="140"
+                      placeholder="Optional memo"
+                    >
+
+                  </div>
+
+                  <div class="form-field full">
+
+                    <div class="balance-preview">
+
+                      <span class="balance-preview-label">
+                        New balance
+                      </span>
+
+                      <span
+                        class="balance-preview-value"
+                        data-preview="new-balance"
+                      >
+                        12,480.32
+                      </span>
+
+                    </div>
+
+                    <!--
+                      app.js reads the first [data-current-balance] element in
+                      the document. Keep this hidden; it is a data carrier only.
+                    -->
+                    <span
+                      hidden
+                      data-current-balance="12480.32"
+                    ></span>
+
+                  </div>
+
+                </div>
+
+                <div
+                  class="role-note"
+                  title="The backend should generate and persist this."
+                >
+                  <i class="ti ti-lock"></i>
+
+                  <span>
+                    <strong>Idempotency:</strong>
+                    the server should generate and persist a unique
+                    idempotency key for this request. Do not trust a
+                    client-only key for financial writes.
+                  </span>
+                </div>
+
+                <div class="form-actions">
+
+                  <button
+                    type="button"
+                    class="btn btn-ghost"
+                    onclick="this.form.reset(); document.querySelector('[data-preview=&quot;new-balance&quot;]').textContent = '12,480.32';"
+                  >
+                    Clear
+                  </button>
+
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                  >
+                    <i class="ti ti-send"></i>
+                    Send transfer
+                  </button>
+
+                </div>
+
+              </form>
+
+            </div>
+
+          </section>
+
+          <!-- Deposit / withdraw -->
+          <section class="panel">
+
+            <div class="panel-header">
+
+              <div>
+                <div class="panel-title">
+                  Cash movement
+                </div>
+
+                <div class="panel-subtitle">
+                  Deposit or withdraw funds
+                </div>
+              </div>
+
+            </div>
+
+            <div class="card-body">
+
+              <form
+                class="form"
+                onsubmit="event.preventDefault(); walletToast('Cash movement submitted.', 'success');"
+              >
+
+                <div class="form-field">
+
+                  <label
+                    class="form-label"
+                    for="movement-type"
+                  >
+                    Transaction type
+                  </label>
+
+                  <select
+                    class="select"
+                    id="movement-type"
+                    name="type"
+                  >
+                    <option value="DEPOSIT">DEPOSIT</option>
+                    <option value="WITHDRAWAL">WITHDRAWAL</option>
+                  </select>
+
+                </div>
+
+                <div class="form-field">
+
+                  <label
+                    class="form-label form-label-required"
+                    for="movement-amount"
+                  >
+                    Amount
+                  </label>
+
+                  <div class="input-with-prefix">
+
+                    <span class="input-prefix">$</span>
+
+                    <input
+                      class="input mono-tabular"
+                      id="movement-amount"
+                      name="amount"
+                      type="number"
+                      inputmode="decimal"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="0.00"
+                      required
+                    >
+
+                  </div>
+
+                </div>
+
+                <div class="form-field">
+
+                  <label
+                    class="form-label"
+                    for="movement-reference"
+                  >
+                    Reference
+                  </label>
+
+                  <input
+                    class="input"
+                    id="movement-reference"
+                    name="reference"
+                    type="text"
+                    maxlength="140"
+                    placeholder="Optional reference"
+                  >
+
+                </div>
+
+                <div class="form-actions">
+
+                  <button
+                    type="submit"
+                    class="btn btn-primary w-full"
+                  >
+                    Continue
+                  </button>
+
+                </div>
+
+              </form>
+
+            </div>
+
+          </section>
+
+        </div>
+
+        <!-- ============================================================
+             ADMIN
+             ============================================================ -->
+
+        <section
+          id="admin"
+          class="panel mt-5"
+        >
+
+          <div class="panel-header">
+
+            <div>
+              <div class="panel-title">
+                Administration
+              </div>
+
+              <div class="panel-subtitle">
+                Wallet controls and balance adjustments
+              </div>
+            </div>
+
+            <span class="status-badge status-badge--completed">
+              ADMIN
+            </span>
+
+          </div>
+
+          <div class="card-body">
+
+            <div class="role-note mb-5">
+              <i class="ti ti-shield-lock"></i>
+
+              <span>
+                This section is intended for users with the
+                <strong>ADMIN</strong> role. Enforce this permission
+                server-side in Django; hiding this UI is not authorization.
+              </span>
+            </div>
+
+            <div class="admin-grid">
+
+              <!-- Wallets table -->
+              <div class="table-wrap">
+
+                <table class="data-table admin-table">
+
+                  <thead>
+                    <tr>
+                      <th>Wallet</th>
+                      <th>User</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th class="text-right">Balance</th>
+                      <th class="text-right">Action</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    <tr>
+
+                      <td class="reference">
+                        WLT-8F20A1
+                      </td>
+
+                      <td>
+                        Unaiz Khan
+                      </td>
+
+                      <td>
+                        CUSTOMER
+                      </td>
+
+                      <td>
+                        <span class="wallet-status">
+                          <span class="wallet-status-dot"></span>
+                          ACTIVE
+                        </span>
+                      </td>
+
+                      <td class="amount">
+                        $12,480.32
+                      </td>
+
+                      <td class="text-right">
+
+                        <button
+                          type="button"
+                          class="toggle-pill is-active"
+                          aria-label="Freeze wallet"
+                          aria-pressed="true"
+                          data-confirm="Freeze this wallet? Existing funds remain, but new transactions should be rejected."
+                          onclick="
+                            this.classList.toggle('is-active');
+                            this.setAttribute('aria-pressed', this.classList.contains('is-active'));
+                            walletToast(
+                              this.classList.contains('is-active')
+                                ? 'Wallet marked active.'
+                                : 'Wallet marked frozen.',
+                              'warning'
+                            );
+                          "
+                        ></button>
+
+                      </td>
+
+                    </tr>
+
+                    <tr>
+
+                      <td class="reference">
+                        WLT-3D91B4
+                      </td>
+
+                      <td>
+                        Sara Ahmed
+                      </td>
+
+                      <td>
+                        CUSTOMER
+                      </td>
+
+                      <td>
+                        <span class="wallet-status wallet-status--frozen">
+                          <span class="wallet-status-dot"></span>
+                          FROZEN
+                        </span>
+                      </td>
+
+                      <td class="amount">
+                        $2,105.10
+                      </td>
+
+                      <td class="text-right">
+
+                        <button
+                          type="button"
+                          class="btn btn-sm"
+                          onclick="walletToast('Wallet unfrozen.', 'success')"
+                        >
+                          Unfreeze
+                        </button>
+
+                      </td>
+
+                    </tr>
+
+                    <tr>
+
+                      <td class="reference">
+                        WLT-77A102
+                      </td>
+
+                      <td>
+                        System
+                      </td>
+
+                      <td>
+                        SYSTEM
+                      </td>
+
+                      <td>
+                        <span class="wallet-status wallet-status--closed">
+                          <span class="wallet-status-dot"></span>
+                          CLOSED
+                        </span>
+                      </td>
+
+                      <td class="amount">
+                        $0.00
+                      </td>
+
+                      <td class="text-right">
+                        <span class="text-muted">
+                          Locked
+                        </span>
+                      </td>
+
+                    </tr>
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+              <!-- Adjust balance -->
+              <div class="card">
+
+                <div class="card-header">
+                  <span class="card-title">
+                    Adjust balance
+                  </span>
+
+                  <i class="ti ti-adjustments text-muted"></i>
+                </div>
+
+                <div class="card-body">
+
+                  <form
+                    class="adjust-balance"
+                    onsubmit="event.preventDefault(); walletConfirm('Apply this balance adjustment?', { onConfirm: function () { walletToast('Balance adjustment submitted.', 'success'); } });"
+                  >
+
+                    <div class="form-field">
+
+                      <label
+                        class="form-label"
+                        for="adjust-wallet"
+                      >
+                        Wallet
+                      </label>
+
+                      <select
+                        class="select"
+                        id="adjust-wallet"
+                      >
+                        <option>WLT-8F20A1 — Unaiz Khan</option>
+                        <option>WLT-3D91B4 — Sara Ahmed</option>
+                      </select>
+
+                    </div>
+
+                    <div class="form-field">
+
+                      <label class="form-label">
+                        Direction
+                      </label>
+
+                      <div class="adjust-direction">
+
+                        <button
+                          type="button"
+                          class="adjust-direction-option active"
+                          onclick="
+                            this.parentElement.querySelectorAll('.adjust-direction-option').forEach(function (el) {
+                              el.classList.remove('active');
+                            });
+                            this.classList.add('active');
+                          "
+                        >
+                          Credit
+                        </button>
+
+                        <button
+                          type="button"
+                          class="adjust-direction-option"
+                          onclick="
+                            this.parentElement.querySelectorAll('.adjust-direction-option').forEach(function (el) {
+                              el.classList.remove('active');
+                            });
+                            this.classList.add('active');
+                          "
+                        >
+                          Debit
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                    <div class="form-field">
+
+                      <label
+                        class="form-label"
+                        for="adjust-amount"
+                      >
+                        Amount
+                      </label>
+
+                      <div class="input-with-prefix">
+                        <span class="input-prefix">$</span>
+
+                        <input
+                          class="input mono-tabular"
+                          id="adjust-amount"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          placeholder="0.00"
+                          required
+                        >
+                      </div>
+
+                    </div>
+
+                    <div class="form-field">
+
+                      <label
+                        class="form-label"
+                        for="adjust-reason"
+                      >
+                        Reason
+                      </label>
+
+                      <textarea
+                        class="textarea"
+                        id="adjust-reason"
+                        placeholder="Required audit reason..."
+                        required
+                      ></textarea>
+
+                    </div>
+
+                    <button
+                      type="submit"
+                      class="btn btn-primary w-full"
+                    >
+                      Apply adjustment
+                    </button>
+
+                  </form>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ================================================================
+       QUICK TRANSFER MODAL
+       ================================================================ -->
+
+  <div
+    class="modal-backdrop"
+    id="quick-transfer-modal"
+    aria-hidden="true"
+  >
+
+    <div
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quick-transfer-title"
+    >
+
+      <div class="modal-header">
+
+        <h2
+          class="modal-title"
+          id="quick-transfer-title"
+        >
+          Quick transfer
+        </h2>
+
+        <button
+          type="button"
+          class="modal-close"
+          data-modal-close
+          aria-label="Close modal"
+        >
+          <i class="ti ti-x"></i>
+        </button>
+
+      </div>
+
+      <div class="modal-body">
+
+        <form
+          class="form"
+          onsubmit="
+            event.preventDefault();
+            closeModal(document.getElementById('quick-transfer-modal'));
+            walletToast('Transfer queued.', 'success');
+          "
+        >
+
+          <div class="form-field">
+
+            <label
+              class="form-label"
+              for="quick-recipient"
+            >
+              Recipient
+            </label>
+
+            <input
+              class="input mono"
+              id="quick-recipient"
+              type="text"
+              placeholder="WLT-XXXXXXXXXXXXXXXX"
+              required
+            >
+
+          </div>
+
+          <div class="form-field">
+
+            <label
+              class="form-label"
+              for="quick-amount"
+            >
+              Amount
+            </label>
+
+            <div class="input-with-prefix">
+
+              <span class="input-prefix">$</span>
+
+              <input
+                class="input mono-tabular"
+                id="quick-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                required
+              >
+
+            </div>
+
+          </div>
+
+          <div class="form-field">
+
+            <label
+              class="form-label"
+              for="quick-memo"
+            >
+              Memo
+            </label>
+
+            <input
+              class="input"
+              id="quick-memo"
+              type="text"
+              placeholder="Optional"
+            >
+
+          </div>
+
+          <div class="form-actions">
+
+            <button
+              type="button"
+              class="btn btn-ghost"
+              data-modal-close
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+            >
+              Send
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ================================================================
+       PROFILE MODAL
+       ================================================================ -->
+
+  <div
+    class="modal-backdrop"
+    id="profile-modal"
+    aria-hidden="true"
+  >
+
+    <div
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-title"
+    >
+
+      <div class="modal-header">
+
+        <h2
+          class="modal-title"
+          id="profile-title"
+        >
+          Account
+        </h2>
+
+        <button
+          type="button"
+          class="modal-close"
+          data-modal-close
+          aria-label="Close modal"
+        >
+          <i class="ti ti-x"></i>
+        </button>
+
+      </div>
+
+      <div class="modal-body">
+
+        <div class="flex items-center gap-4">
+
+          <div class="sidebar-brand-mark">
+            UK
+          </div>
+
+          <div>
+
+            <div class="font-semibold">
+              Unaiz Khan
+            </div>
+
+            <div class="text-muted mt-1">
+              Administrator
+            </div>
+
+            <div class="mono text-muted mt-1">
+              usr_01H7Q9K2
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn"
+          data-modal-close
+        >
+          Close
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ================================================================
+       TOAST REGION
+       ================================================================ -->
+
+  <div
+    class="toast-region"
+    data-toast-region
+    aria-live="polite"
+    aria-atomic="false"
+  ></div>
+
+  <script src="app.js"></script>
+
+  <script>
+    /*
+     * Demo listener showing how the future Django/HTMX integration can hook
+     * into command-palette actions without modifying app.js.
+     */
+    document.addEventListener("wallet:action", function (event) {
+      const action = event.detail.action;
+
+      const targetMap = {
+        overview: "#overview",
+        transactions: "#transactions",
+        admin: "#admin",
+        transfer: "#transfers",
+      };
+
+      if (targetMap[action]) {
+        const target = document.querySelector(targetMap[action]);
+
+        if (target) {
+          target.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      }
+
+      if (action === "deposit" || action === "withdraw") {
+        walletToast(
+          action === "deposit"
+            ? "Deposit action selected."
+            : "Withdrawal action selected.",
+          "info"
+        );
+      }
+    });
+
+    /*
+     * Expose a closeModal helper used by the quick-transfer modal's inline
+     * onsubmit. app.js keeps its internal implementation dependency-free.
+     */
+    function closeModal(selectorOrElement) {
+      const element =
+        typeof selectorOrElement === "string"
+          ? document.querySelector(selectorOrElement)
+          : selectorOrElement;
+
+      if (!element) {
+        return;
+      }
+
+      element.classList.remove("is-open");
+      element.setAttribute("aria-hidden", "true");
+    }
+  </script>
+
+</body>
+</html>

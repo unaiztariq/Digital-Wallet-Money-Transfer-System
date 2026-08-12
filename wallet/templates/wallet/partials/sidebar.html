@@ -1,0 +1,84 @@
+<aside class="sidebar">
+
+  <div class="sidebar-header">
+    <a href="{% url 'dashboard' %}" class="sidebar-brand" aria-label="Wallet home">
+      <span class="sidebar-brand-mark">$</span>
+      <span class="sidebar-brand-name">wallet</span>
+    </a>
+  </div>
+
+  <nav class="sidebar-nav" aria-label="Primary navigation">
+
+    <div class="sidebar-section-label">Workspace</div>
+
+    <a
+      href="{% url 'dashboard' %}"
+      class="sidebar-nav-item{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}"
+      {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}
+    >
+      <i class="ti ti-layout-dashboard"></i>
+      <span class="sidebar-nav-item-label">Overview</span>
+    </a>
+
+    <a
+      href="{% url 'transfer' %}"
+      class="sidebar-nav-item{% if request.resolver_match.url_name == 'transfer' %} active{% endif %}"
+      {% if request.resolver_match.url_name == 'transfer' %}aria-current="page"{% endif %}
+    >
+      <i class="ti ti-arrow-up-right"></i>
+      <span class="sidebar-nav-item-label">Transfer</span>
+    </a>
+
+    <a
+      href="{% url 'deposit' %}"
+      class="sidebar-nav-item{% if request.resolver_match.url_name == 'deposit' %} active{% endif %}"
+      {% if request.resolver_match.url_name == 'deposit' %}aria-current="page"{% endif %}
+    >
+      <i class="ti ti-arrow-down-left"></i>
+      <span class="sidebar-nav-item-label">Deposit</span>
+    </a>
+
+    <a
+      href="{% url 'withdraw' %}"
+      class="sidebar-nav-item{% if request.resolver_match.url_name == 'withdraw' %} active{% endif %}"
+      {% if request.resolver_match.url_name == 'withdraw' %}aria-current="page"{% endif %}
+    >
+      <i class="ti ti-arrow-up-left"></i>
+      <span class="sidebar-nav-item-label">Withdraw</span>
+    </a>
+
+    <a
+      href="{% url 'transactions' %}"
+      class="sidebar-nav-item{% if request.resolver_match.url_name == 'transactions' %} active{% endif %}"
+      {% if request.resolver_match.url_name == 'transactions' %}aria-current="page"{% endif %}
+    >
+      <i class="ti ti-list-details"></i>
+      <span class="sidebar-nav-item-label">Transactions</span>
+    </a>
+
+    {% if request.user.role == 'ADMIN' %}
+    <div class="sidebar-section-label">Administration</div>
+
+    <a
+      href="{% url 'admin_console' %}"
+      class="sidebar-nav-item{% if request.resolver_match.url_name == 'admin_console' %} active{% endif %}"
+      {% if request.resolver_match.url_name == 'admin_console' %}aria-current="page"{% endif %}
+    >
+      <i class="ti ti-shield"></i>
+      <span class="sidebar-nav-item-label">Admin</span>
+    </a>
+    {% endif %}
+
+  </nav>
+
+  <div class="sidebar-footer">
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-ghost btn-sm w-full">
+        <i class="ti ti-logout"></i>
+        <span class="btn-label">Log out</span>
+      </button>
+    </form>
+  </div>
+
+</aside>

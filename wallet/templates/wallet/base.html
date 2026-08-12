@@ -1,0 +1,200 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%2318181b'/%3E%3Ctext x='12' y='16' font-family='monospace' font-size='13' font-weight='700' fill='%23ffffff' text-anchor='middle'%3E%24%3C/text%3E%3C/svg%3E">
+
+  <title>{% block title %}Wallet{% endblock %}</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+  {% block extra_head %}{% endblock %}
+
+  <!-- Theme CSS -->
+  <link rel="stylesheet" href="{% static 'wallet/css/theme.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body data-command-shortcuts="true" class="{% block body_class %}{% endblock %}">
+
+  <div class="app-shell">
+
+    {# Overridable: auth pages override this block with an empty one. #}
+    {% block sidebar %}
+      {% include "wallet/partials/sidebar.html" %}
+    {% endblock %}
+
+    <main class="main">
+
+      {# Overridable: auth pages blank this out. #}
+      {% block topbar %}
+
+        <div class="top-status-strip">
+          <div class="status-strip-left">
+            <span class="status-strip-item">
+              <span class="status-strip-dot"></span>
+              System operational
+            </span>
+            {% if wallets %}
+            <span class="status-strip-item">
+              <span>Wallet</span>
+              <span class="mono">#{{ wallets.0.id }}</span>
+            </span>
+            {% endif %}
+          </div>
+
+          <div class="status-strip-right">
+            <span class="status-strip-item">
+              Signed in as <strong>{{ request.user.username }}</strong>
+            </span>
+            {% if request.user.role == 'ADMIN' %}
+            <span class="status-strip-item">
+              <span class="status-badge status-badge--completed">ADMIN</span>
+            </span>
+            {% endif %}
+            <span class="status-strip-item">
+              <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-sm" aria-label="Log out">
+                  <i class="ti ti-logout"></i>
+                  <span class="btn-label">Log out</span>
+                </button>
+              </form>
+            </span>
+          </div>
+        </div>
+
+        <div class="command-bar-wrap">
+          <button
+            type="button"
+            class="command-bar w-full"
+            aria-label="Open command palette"
+            onclick="walletOpenCommandPalette()"
+          >
+            <i class="ti ti-search command-bar-icon"></i>
+            <span class="command-bar-placeholder">
+              Search transactions, references, commands...
+            </span>
+            <span class="command-bar-shortcut">
+              <span>⌘</span>
+              <span>K</span>
+            </span>
+          </button>
+        </div>
+
+      {% endblock %}
+
+      <div class="page">
+
+        {% block page_header %}
+        <header class="page-header">
+          <div class="page-header-copy">
+            <h1 class="page-title">{% block page_title %}Wallet{% endblock %}</h1>
+            {% block page_subtitle %}{% endblock %}
+          </div>
+          <div class="page-actions">
+            {% block page_actions %}{% endblock %}
+          </div>
+        </header>
+        {% endblock %}
+
+        {% block content %}{% endblock %}
+
+      </div>
+    </main>
+  </div>
+
+  {# Toast region (app.js appends toasts here; created on demand if missing). #}
+  <div class="toast-region" data-toast-region aria-live="polite" aria-atomic="false"></div>
+
+  {# Renders the CSRF token so Django sets the cookie on first GET. #}
+  <form hidden aria-hidden="true">{% csrf_token %}</form>
+
+  <!-- HTMX 2.x -->
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="{% static 'wallet/js/app.js' %}"></script>
+
+  <script>
+    /* ==================================================================
+       CSRF cookie helpers (template-owned; app.js is left untouched).
+       ================================================================== */
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    /* Add X-CSRFToken to every htmx request. */
+    document.addEventListener('htmx:configRequest', function (event) {
+      const token = getCookie('csrftoken');
+      if (token) {
+        event.detail.headers['X-CSRFToken'] = token;
+      }
+    });
+
+    /* Command palette actions → page navigation. */
+    document.addEventListener('wallet:action', function (event) {
+      const action = event.detail.action;
+      const urlMap = {
+        'overview': "{% url 'dashboard' %}",
+        'transfer': "{% url 'transfer' %}",
+        'deposit': "{% url 'deposit' %}",
+        'withdraw': "{% url 'withdraw' %}",
+        'transactions': "{% url 'transactions' %}",
+        'admin': "{% url 'admin_console' %}"
+      };
+      if (urlMap[action]) {
+        window.location.href = urlMap[action];
+      }
+    });
+
+    /* Generic POST helper for the money-movement API endpoints:
+       JSON body + CSRF + Idempotency-Key, resolves with parsed JSON,
+       rejects with an Error whose message is the API detail/message. */
+    window.walletApiPost = function (url, data) {
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+          'Idempotency-Key': (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'uuid-' + Date.now() + '-' + Math.random().toString(16).slice(2)
+        },
+        body: JSON.stringify(data || {})
+      }).then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (body) {
+          if (!response.ok) {
+            const message = body.detail || body.message || ('Request failed (' + response.status + ')');
+            const error = new Error(message);
+            error.body = body;
+            error.status = response.status;
+            throw error;
+          }
+          return body;
+        });
+      });
+    };
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

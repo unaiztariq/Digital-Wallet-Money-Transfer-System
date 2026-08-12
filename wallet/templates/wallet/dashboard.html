@@ -1,0 +1,46 @@
+{% extends "wallet/base.html" %}
+{% load static %}
+
+{% block title %}Wallet — Overview{% endblock %}
+
+{% block page_title %}Wallet overview{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">Current balance, wallet status and recent activity.</p>
+{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'transfer' %}" class="btn btn-primary">
+  <i class="ti ti-arrow-up-right"></i>
+  <span class="btn-label">Transfer</span>
+</a>
+<a href="{% url 'transactions' %}" class="btn">
+  <i class="ti ti-list-details"></i>
+  <span class="btn-label">Transactions</span>
+</a>
+{% endblock %}
+
+{% block content %}
+
+  {% include "wallet/partials/stat_cards.html" %}
+
+  {% include "wallet/partials/wallet_cards.html" %}
+
+  <section class="panel mt-5" aria-label="Recent transactions">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Recent transactions</div>
+        <div class="panel-subtitle">Latest wallet activity</div>
+      </div>
+      <a href="{% url 'transactions' %}" class="btn btn-ghost btn-sm">
+        <i class="ti ti-arrow-right"></i>
+        <span class="btn-label">View all</span>
+      </a>
+    </div>
+
+    <div class="card-body">
+      {% include "wallet/partials/transaction_table.html" with transactions=transactions %}
+    </div>
+  </section>
+
+{% endblock %}

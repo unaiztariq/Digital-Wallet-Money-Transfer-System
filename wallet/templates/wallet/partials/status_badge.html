@@ -1,0 +1,14 @@
+{% comment %}
+Status badge from a raw status value, e.g.
+  {% include "wallet/partials/status_badge.html" with status=tx.status %}
+
+Maps PENDING / COMPLETED / FAILED / CANCELLED to the theme badge variants;
+anything unknown renders as the neutral CANCELLED style.
+{% endcomment %}
+<span class="status-badge
+  {% with s=status|upper %}
+  {% if s == 'PENDING' %}status-badge--pending
+  {% elif s == 'COMPLETED' %}status-badge--completed
+  {% elif s == 'FAILED' %}status-badge--failed
+  {% else %}status-badge--cancelled{% endif %}
+  {% endwith %}">{{ status|upper|default:"UNKNOWN" }}</span>

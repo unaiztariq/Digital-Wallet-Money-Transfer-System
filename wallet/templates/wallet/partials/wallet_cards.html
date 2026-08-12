@@ -1,0 +1,38 @@
+{% comment %}
+Context:
+  wallets — list/queryset of wallet objects with .currency, .balance,
+            .status (ACTIVE / FROZEN / CLOSED) and .id
+{% endcomment %}
+{% if wallets %}
+<section class="card-grid" aria-label="Wallets">
+
+  {% for wallet in wallets %}
+  <article class="card">
+    <div class="card-header">
+      <span class="card-title">{{ wallet.currency }} wallet</span>
+      <span class="wallet-status{% if wallet.status == 'FROZEN' %} wallet-status--frozen{% elif wallet.status == 'CLOSED' %} wallet-status--closed{% endif %}">
+        <span class="wallet-status-dot"></span>
+        {{ wallet.get_status_display|default:wallet.status }}
+      </span>
+    </div>
+
+    <div class="card-body">
+      <div class="stat-label">Balance</div>
+      <div class="stat-value mono">{{ wallet.balance|floatformat:2 }}</div>
+
+      <div class="mt-4 flex items-center gap-2">
+        <a href="{% url 'transfer' %}?wallet={{ wallet.id }}" class="btn btn-sm btn-primary">
+          <i class="ti ti-arrow-up-right"></i>
+          <span class="btn-label">Transfer</span>
+        </a>
+        <a href="{% url 'deposit' %}?wallet={{ wallet.id }}" class="btn btn-sm btn-ghost">
+          <i class="ti ti-arrow-down-left"></i>
+          <span class="btn-label">Deposit</span>
+        </a>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+
+</section>
+{% endif %}

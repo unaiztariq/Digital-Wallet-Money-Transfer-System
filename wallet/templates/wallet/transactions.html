@@ -1,0 +1,170 @@
+{% extends "wallet/base.html" %}
+{% load static %}
+
+{% block title %}Wallet — Transactions{% endblock %}
+
+{% block page_title %}Transactions{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">Search and review wallet activity.</p>
+{% endblock %}
+
+{% block content %}
+
+<section class="panel" aria-label="Transactions">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Transaction history</div>
+      <div class="panel-subtitle">
+        {% if total_pages %}Page {{ page_number }} of {{ total_pages }}{% endif %}
+      </div>
+    </div>
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm"
+      onclick="document.getElementById('tx-filter-form').classList.toggle('hidden')"
+    >
+      <i class="ti ti-filter"></i>
+      <span class="btn-label">Filters</span>
+    </button>
+  </div>
+
+  <div class="card-body">
+
+    {# All / Incoming / Outgoing chips (fires wallet:filter — handled below). #}
+    {% include "wallet/partials/filter_chips.html" with direction=direction %}
+
+    {# Server-rendered filter form — GET re-renders this page with filters. #}
+    <form
+      id="tx-filter-form"
+      class="form{% if not active_filters %} hidden{% endif %} mt-4"
+      method="get"
+      action="{% url 'transactions' %}"
+    >
+      <div class="form-grid form-grid-3">
+
+        <div class="form-field">
+          <label class="form-label" for="f-type">Type</label>
+          <select class="select" id="f-type" name="type">
+            <option value="">All types</option>
+            <option value="DEPOSIT"{% if type == 'DEPOSIT' %} selected{% endif %}>Deposit</option>
+            <option value="WITHDRAWAL"{% if type == 'WITHDRAWAL' %} selected{% endif %}>Withdrawal</option>
+            <option value="TRANSFER"{% if type == 'TRANSFER' %} selected{% endif %}>Transfer</option>
+            <option value="ADJUSTMENT"{% if type == 'ADJUSTMENT' %} selected{% endif %}>Adjustment</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="f-status">Status</label>
+          <select class="select" id="f-status" name="status">
+            <option value="">All statuses</option>
+            <option value="PENDING"{% if status == 'PENDING' %} selected{% endif %}>Pending</option>
+            <option value="COMPLETED"{% if status == 'COMPLETED' %} selected{% endif %}>Completed</option>
+            <option value="FAILED"{% if status == 'FAILED' %} selected{% endif %}>Failed</option>
+            <option value="CANCELLED"{% if status == 'CANCELLED' %} selected{% endif %}>Cancelled</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="f-reference">Reference</label>
+          <input class="input mono" id="f-reference" name="reference" type="text" value="{{ reference }}" placeholder="TXN-…">
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="f-from">Date from</label>
+          <input class="input" id="f-from" name="date_from" type="date" value="{{ date_from }}">
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="f-to">Date to</label>
+          <input class="input" id="f-to" name="date_to" type="date" value="{{ date_to }}">
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="f-amin">Min amount</label>
+          <input class="input mono-tabular" id="f-amin" name="amount_min" type="number" step="0.01" value="{{ amount_min }}">
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="f-amax">Max amount</label>
+          <input class="input mono-tabular" id="f-amax" name="amount_max" type="number" step="0.01" value="{{ amount_max }}">
+        </div>
+
+        <input type="hidden" name="direction" value="{{ direction }}">
+
+        <div class="form-field" style="align-self: end;">
+          <div class="form-actions" style="justify-content: flex-start;">
+            <button type="submit" class="btn btn-primary">
+              <i class="ti ti-filter"></i>
+              <span class="btn-label">Apply</span>
+            </button>
+            <a href="{% url 'transactions' %}" class="btn btn-ghost">Clear</a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <div class="mt-4">
+      {% include "wallet/partials/transaction_table.html" with transactions=transactions %}
+    </div>
+
+    {# Pagination — page_obj-like flat context from the view. #}
+    {% if total_pages and total_pages > 1 %}
+    <div class="flex items-center justify-between mt-5">
+      <span class="text-muted mono" style="font-size: 11px;">Page {{ page_number }} / {{ total_pages }}</span>
+
+      <div class="flex items-center gap-2">
+        {% if has_previous %}
+        <a
+          class="btn btn-sm btn-ghost"
+          href="?page={{ previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}"
+        >
+          ‹ Previous
+        </a>
+        {% else %}
+        <span class="btn btn-sm btn-ghost" style="opacity: 0.4; pointer-events: none;" aria-disabled="true">‹ Previous</span>
+        {% endif %}
+
+        {% if next_page_number %}
+        <a
+          class="btn btn-sm btn-ghost"
+          href="?page={{ next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}"
+        >
+          Next ›
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    /* Filter chips fire 'wallet:filter' (app.js). Stay server-rendered:
+       rebuild the GET URL from the current filter form + chip direction. */
+    document.addEventListener('wallet:filter', function (event) {
+      var form = document.getElementById('tx-filter-form');
+      if (!form) { return; }
+
+      var params = new URLSearchParams(new FormData(form));
+      var direction = event.detail.filter;
+
+      if (direction && direction !== 'all') {
+        params.set('direction', direction);
+      } else {
+        params.delete('direction');
+      }
+      params.delete('page');
+
+      var query = params.toString();
+      window.location.href = form.getAttribute('action') + (query ? '?' + query : '');
+    });
+  });
+</script>
+{% endblock %}

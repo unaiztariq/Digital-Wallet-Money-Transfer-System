@@ -1,0 +1,120 @@
+{% extends "wallet/base.html" %}
+{% load static %}
+
+{% block title %}Wallet — Register{% endblock %}
+
+{% block body_class %}auth-page{% endblock %}
+{% block sidebar %}{% endblock %}
+{% block topbar %}{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block content %}
+
+<div class="auth-shell">
+
+  <div class="panel auth-panel" aria-labelledby="auth-title">
+
+    <div class="auth-terminal-bar">
+      <a href="{% url 'dashboard' %}" class="auth-brand" aria-label="Wallet home">
+        <span class="sidebar-brand-mark">$</span>
+        <span class="sidebar-brand-name">wallet</span>
+      </a>
+      <span class="auth-terminal-meta mono">AUTH / REGISTER</span>
+    </div>
+
+    <div class="panel-header">
+      <div>
+        <div class="panel-title" id="auth-title">Create account</div>
+        <div class="panel-subtitle">Open a wallet for transfers, deposits and withdrawals</div>
+      </div>
+      <span class="mono text-muted">POST /accounts/register/</span>
+    </div>
+
+    <div class="card-body">
+
+      {% if messages %}
+      {% for message in messages %}
+      <div class="role-note mb-4" role="status">
+        <i class="ti ti-info-circle"></i>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if form and form.non_field_errors %}
+      <div class="role-note mb-4" role="alert">
+        <i class="ti ti-alert-triangle"></i>
+        <span>{% for error in form.non_field_errors %}{{ error }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+      </div>
+      {% endif %}
+
+      {% if error %}
+      <div class="role-note mb-4" role="alert">
+        <i class="ti ti-alert-triangle"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form class="form" method="post" action="{% url 'register' %}">
+        {% csrf_token %}
+
+        <div class="form-field">
+          <label class="form-label form-label-required" for="id_email">Email</label>
+          <input class="input" id="id_email" name="email" type="email"
+                 autocomplete="email" autofocus required
+                 {% if form and form.email.errors %}aria-invalid="true"{% endif %}>
+          {% if form %}{% for err in form.email.errors %}<div class="form-error">{{ err }}</div>{% endfor %}{% endif %}
+        </div>
+
+        <div class="form-field">
+          <label class="form-label form-label-required" for="id_username">Username</label>
+          <input class="input" id="id_username" name="username" type="text"
+                 autocomplete="username" required
+                 {% if form and form.username.errors %}aria-invalid="true"{% endif %}>
+          {% if form %}{% for err in form.username.errors %}<div class="form-error">{{ err }}</div>{% endfor %}{% endif %}
+        </div>
+
+        <div class="form-field">
+          <label class="form-label form-label-required" for="id_password">Password</label>
+          <input class="input" id="id_password" name="password" type="password"
+                 autocomplete="new-password" required
+                 {% if form and form.password.errors %}aria-invalid="true"{% endif %}>
+          {% if form %}{% for err in form.password.errors %}<div class="form-error">{{ err }}</div>{% endfor %}{% endif %}
+          <div class="form-help">Minimum 8 characters.</div>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label form-label-required" for="id_password_confirm">Confirm password</label>
+          <input class="input" id="id_password_confirm" name="password_confirm" type="password"
+                 autocomplete="new-password" required
+                 {% if form and form.password_confirm.errors %}aria-invalid="true"{% endif %}>
+          {% if form %}{% for err in form.password_confirm.errors %}<div class="form-error">{{ err }}</div>{% endfor %}{% endif %}
+        </div>
+
+        <div class="role-note">
+          <i class="ti ti-info-circle"></i>
+          <span>Passwords are hashed and never stored in plain text.</span>
+        </div>
+
+        <div class="form-actions mt-4">
+          <button type="submit" class="btn btn-primary w-full">
+            <i class="ti ti-user-plus"></i>
+            <span class="btn-label">Create account</span>
+          </button>
+        </div>
+
+      </form>
+
+      <div class="divider"></div>
+
+      <p class="auth-switch">
+        Already have an account?
+        <a class="auth-switch-link" href="{% url 'login' %}">Sign in</a>
+      </p>
+
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

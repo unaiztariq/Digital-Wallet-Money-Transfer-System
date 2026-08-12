@@ -1,0 +1,40 @@
+{% comment %}
+Direction filter chips (all / incoming / outgoing).
+
+app.js binds [data-filter] chips and dispatches a 'wallet:filter'
+CustomEvent on click. The host page is responsible for listening and
+navigating (see transactions.html), keeping the page server-rendered.
+
+Context:
+  direction — current value: 'all' | 'incoming' | 'outgoing'
+{% endcomment %}
+<div class="filter-bar" data-filter-group>
+  <div class="filter-chips">
+    <button
+      type="button"
+      class="filter-chip{% if direction == 'all' or not direction %} active{% endif %}"
+      data-filter="all"
+      aria-pressed="{% if direction == 'all' or not direction %}true{% else %}false{% endif %}"
+    >
+      All
+    </button>
+
+    <button
+      type="button"
+      class="filter-chip{% if direction == 'incoming' %} active{% endif %}"
+      data-filter="incoming"
+      aria-pressed="{% if direction == 'incoming' %}true{% else %}false{% endif %}"
+    >
+      Incoming
+    </button>
+
+    <button
+      type="button"
+      class="filter-chip{% if direction == 'outgoing' %} active{% endif %}"
+      data-filter="outgoing"
+      aria-pressed="{% if direction == 'outgoing' %}true{% else %}false{% endif %}"
+    >
+      Outgoing
+    </button>
+  </div>
+</div>
