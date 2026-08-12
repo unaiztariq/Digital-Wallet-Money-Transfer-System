@@ -22,7 +22,6 @@
         From {{ wallet.currency }} wallet · balance {{ wallet.balance|floatformat:2 }}
       </div>
     </div>
-    <span class="mono text-muted">POST /transfer</span>
   </div>
 
   <div class="card-body">
@@ -56,7 +55,7 @@
           <select class="select" id="tx-recipient" name="recipient_wallet_id" required>
             <option value="">Select a recipient wallet…</option>
             {% for rw in recipient_wallets %}
-            <option value="{{ rw.id }}">{{ rw.owner.username }} · {{ rw.currency }} · {{ rw.balance|floatformat:2 }}</option>
+            <option value="{{ rw.id }}">{{ rw.owner.username }} — {{ rw.currency }} wallet</option>
             {% endfor %}
           </select>
           {% if not recipient_wallets %}
@@ -85,13 +84,13 @@
         </div>
 
         <div class="form-field">
-          <label class="form-label" for="tx-description">Description</label>
+          <label class="form-label" for="tx-description">Reference (optional)</label>
           <input
             class="input"
             id="tx-description"
             name="description"
             type="text"
-            maxlength="140"
+            maxlength="255"
             placeholder="Optional memo"
           >
         </div>
@@ -139,7 +138,7 @@
       <span class="empty-state-icon"><i class="ti ti-wallet-off"></i></span>
       <span class="empty-state-title">No wallet available</span>
       <span class="empty-state-copy">Create a wallet before you can transfer funds.</span>
-      <a href="{% url 'dashboard' %}#open-wallet" class="btn btn-primary btn-sm mt-3">
+      <a href="{% url 'open_wallet' %}" class="btn btn-primary btn-sm mt-3">
         <i class="ti ti-wallet"></i>
         <span class="btn-label">Open a wallet</span>
       </a>

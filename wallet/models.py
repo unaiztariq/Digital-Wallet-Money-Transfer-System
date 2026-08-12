@@ -89,6 +89,7 @@ class Transaction(models.Model):
     currency = models.CharField(max_length=3)
     status = models.CharField(max_length=9, choices=Status.choices, default=Status.PENDING)
     failure_reason = models.TextField(null=True, blank=True)
+    description = models.CharField(max_length=255, blank=True, default='')
     idempotency_key = models.CharField(max_length=64, null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

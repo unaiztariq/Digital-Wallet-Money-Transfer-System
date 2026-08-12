@@ -21,6 +21,7 @@ class WalletCreateSerializer(serializers.Serializer):
 
 class DepositSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=18, decimal_places=4)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
 
 class WithdrawSerializer(DepositSerializer):
@@ -30,7 +31,7 @@ class WithdrawSerializer(DepositSerializer):
 class TransferSerializer(serializers.Serializer):
     recipient_wallet_id = serializers.UUIDField()
     amount = serializers.DecimalField(max_digits=18, decimal_places=4)
-    description = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -39,7 +40,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        fields = ('id', 'reference', 'type', 'amount', 'currency', 'status', 'failure_reason',
+        fields = ('id', 'reference', 'type', 'amount', 'currency', 'status', 'failure_reason', 'description',
                   'created_at', 'sender_wallet_id', 'receiver_wallet_id')
 
 

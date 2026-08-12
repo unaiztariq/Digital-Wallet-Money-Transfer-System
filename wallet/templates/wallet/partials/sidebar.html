@@ -48,6 +48,15 @@
     </a>
 
     <a
+      href="{% url 'open_wallet' %}"
+      class="sidebar-nav-item{% if request.resolver_match.url_name == 'open_wallet' %} active{% endif %}"
+      {% if request.resolver_match.url_name == 'open_wallet' %}aria-current="page"{% endif %}
+    >
+      <i class="ti ti-wallet"></i>
+      <span class="sidebar-nav-item-label">Open wallet</span>
+    </a>
+
+    <a
       href="{% url 'transactions' %}"
       class="sidebar-nav-item{% if request.resolver_match.url_name == 'transactions' %} active{% endif %}"
       {% if request.resolver_match.url_name == 'transactions' %}aria-current="page"{% endif %}

@@ -1,0 +1,31 @@
+{% extends "wallet/base.html" %}
+
+{% block title %}Wallet — Open a wallet{% endblock %}
+
+{% block page_title %}Open a wallet{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">A new wallet for a different currency — one wallet per currency.</p>
+{% endblock %}
+
+{% block content %}
+<section class="panel" aria-label="Open a wallet">
+  <div class="panel-header">
+    <div class="panel-title">Open a wallet</div>
+  </div>
+  <div class="card-body">
+    <form class="form" method="post" action="{% url 'wallet_create' %}">
+      {% csrf_token %}
+      <select class="select" name="currency" required>
+        {% for code in supported_currencies %}
+        <option value="{{ code }}"{% if code in existing_currencies %} disabled{% endif %}>{{ code }}{% if code in existing_currencies %} (already open){% endif %}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">
+        <i class="ti ti-plus"></i>
+        <span class="btn-label">Open wallet</span>
+      </button>
+    </form>
+  </div>
+</section>
+{% endblock %}

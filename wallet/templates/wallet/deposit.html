@@ -22,7 +22,6 @@
         {{ wallet.currency }} wallet · balance {{ wallet.balance|floatformat:2 }}
       </div>
     </div>
-    <span class="mono text-muted">POST /deposit</span>
   </div>
 
   <div class="card-body">
@@ -72,6 +71,11 @@
         </div>
 
         <div class="form-field full">
+          <label class="form-label" for="dep-description">Reference (optional)</label>
+          <input class="input" id="dep-description" name="description" type="text" maxlength="255" placeholder="Memo visible in history">
+        </div>
+
+        <div class="form-field full">
           <div class="balance-preview">
             <span class="balance-preview-label">New balance</span>
             <span class="balance-preview-value" data-preview="new-balance">{{ wallet.balance|floatformat:2 }}</span>
@@ -114,7 +118,7 @@
       <span class="empty-state-icon"><i class="ti ti-wallet-off"></i></span>
       <span class="empty-state-title">No wallet available</span>
       <span class="empty-state-copy">Create a wallet before you can deposit funds.</span>
-      <a href="{% url 'dashboard' %}#open-wallet" class="btn btn-primary btn-sm mt-3">
+      <a href="{% url 'open_wallet' %}" class="btn btn-primary btn-sm mt-3">
         <i class="ti ti-wallet"></i>
         <span class="btn-label">Open a wallet</span>
       </a>
@@ -136,7 +140,10 @@
       event.preventDefault();
 
       var formData = new FormData(form);
-      var data = { amount: formData.get('amount') };
+      var data = {
+        amount: formData.get('amount'),
+        description: formData.get('description') || ''
+      };
 
       if (!data.amount || Number(data.amount) <= 0) {
         window.walletToast('Enter a valid amount.', 'error');

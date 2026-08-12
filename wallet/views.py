@@ -27,7 +27,10 @@ def _present_wallets(wallets):
 def _present_transactions(user, txs, admin=False):
     txs = list(txs)
     for tx in txs:
-        tx.description = tx.failure_reason if tx.status == Transaction.Status.FAILED and tx.failure_reason else None
+        if not tx.description:
+            tx.description = (tx.failure_reason
+                              if tx.status == Transaction.Status.FAILED and tx.failure_reason
+                              else '')
         tx.sender = tx.sender_wallet.user if tx.sender_wallet_id else None
         tx.recipient = tx.receiver_wallet.user if tx.receiver_wallet_id else None
         if admin:
@@ -54,11 +57,19 @@ def dashboard(request):
     wallets = _present_wallets(WalletService().list_wallets(request.user))
     history = TransactionService().history(request.user, {}, 1)
     transactions = _present_transactions(request.user, history.items[:5])
-    total_balance = sum((wallet.balance for wallet in wallets), Decimal('0'))
+    totals = {}
+    for wallet in wallets:
+        totals[wallet.currency] = totals.get(wallet.currency, Decimal('0')) + wallet.balance
+    currencies = list(totals)
+    selected = (request.GET.get('currency') or '').upper()
+    if selected not in totals:
+        selected = currencies[0] if currencies else settings.DEFAULT_WALLET_CURRENCY
     return render(request, 'wallet/dashboard.html', {
         'wallets': wallets,
         'transactions': transactions,
-        'total_balance': total_balance,
+        'total_balance': totals.get(selected, Decimal('0')),
+        'selected_currency': selected,
+        'currencies': currencies,
     })
 
 
@@ -193,11 +204,24 @@ def register(request):
 
 
 @login_required
+def open_wallet(request):
+    """Open-wallet page: pick a supported currency from a dropdown."""
+    wallets = WalletService().list_wallets(request.user)
+    return render(request, 'wallet/open_wallet.html', {
+        'supported_currencies': list(settings.SUPPORTED_CURRENCIES),
+        'existing_currencies': [w.currency for w in wallets],
+    })
+
+
+@login_required
 def wallet_create(request):
     """Opens a wallet for the given 3-letter currency code (page form)."""
     if request.method != 'POST':
         return redirect('dashboard')
     currency = (request.POST.get('currency') or '').strip().upper()
+    if currency not in settings.SUPPORTED_CURRENCIES:
+        messages.error(request, f'Unsupported currency: {currency}. Choose one of: {", ".join(settings.SUPPORTED_CURRENCIES)}.')
+        return redirect('dashboard')
     try:
         WalletService().create_wallet(request.user, currency)
         messages.success(request, f'{currency} wallet opened.')

@@ -56,7 +56,7 @@ class WalletService:
             return txn
         raise DuplicateTransaction('Transaction with this idempotency key is pending')
 
-    def deposit(self, user, wallet_id, amount, idempotency_key=None):
+    def deposit(self, user, wallet_id, amount, description=None, idempotency_key=None):
         replay = self._replay(wallet_id, idempotency_key)
         if replay: return replay
         wallet = self.get_wallet(user, wallet_id)
@@ -67,14 +67,15 @@ class WalletService:
             wallet = Wallet.objects.select_for_update().get(pk=wallet_id)
             if wallet.status != Wallet.Status.ACTIVE: raise WalletFrozen('Wallet is not active')
             txn = transactions.create_transaction(reference=transactions.next_reference(timezone.localdate()), sender_wallet=None,
-                receiver_wallet=wallet, type=Transaction.Type.DEPOSIT, amount=amount, currency=wallet.currency, idempotency_key=idempotency_key)
+                receiver_wallet=wallet, type=Transaction.Type.DEPOSIT, amount=amount, currency=wallet.currency,
+                description=description, idempotency_key=idempotency_key)
             balance = wallet.balance + amount
             transactions.create_wallet_transaction(txn, wallet, WalletTransaction.EntryType.CREDIT, amount, balance)
             wallets.update_balance(wallet, balance)
             txn.status = Transaction.Status.COMPLETED; txn.save(update_fields=['status', 'updated_at'])
             return txn
 
-    def withdraw(self, user, wallet_id, amount, idempotency_key=None):
+    def withdraw(self, user, wallet_id, amount, description=None, idempotency_key=None):
         replay = self._replay(wallet_id, idempotency_key)
         if replay: return replay
         wallet = self.get_wallet(user, wallet_id)
@@ -88,7 +89,8 @@ class WalletService:
             if wallets.sum_debits_for_date(wallet.id, timezone.localdate(), Transaction.Type.WITHDRAWAL) + amount > config.max_daily_withdrawal: raise LimitExceeded('max_daily_withdrawal')
             if wallet.balance < amount: raise InsufficientBalance('Insufficient balance')
             txn = transactions.create_transaction(reference=transactions.next_reference(timezone.localdate()), sender_wallet=wallet,
-                receiver_wallet=None, type=Transaction.Type.WITHDRAWAL, amount=amount, currency=wallet.currency, idempotency_key=idempotency_key)
+                receiver_wallet=None, type=Transaction.Type.WITHDRAWAL, amount=amount, currency=wallet.currency,
+                description=description, idempotency_key=idempotency_key)
             balance = wallet.balance - amount
             transactions.create_wallet_transaction(txn, wallet, WalletTransaction.EntryType.DEBIT, amount, balance)
             wallets.update_balance(wallet, balance)

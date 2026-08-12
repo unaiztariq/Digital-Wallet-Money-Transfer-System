@@ -216,3 +216,4 @@ LOGOUT_REDIRECT_URL = 'login'
 
 # Default currency for the wallet auto-created when a new account registers.
 DEFAULT_WALLET_CURRENCY = 'PKR'
+SUPPORTED_CURRENCIES = ('PKR', 'USD', 'EUR', 'GBP', 'JPY', 'CHF')

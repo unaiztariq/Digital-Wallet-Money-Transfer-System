@@ -787,3 +787,152 @@ class RegistrationWalletTests(TestCase):
         response = self.client.post('/wallets/create/', {'currency': 'EUR'})
         self.assertEqual(response.status_code, 302)
         self.assertIn('/accounts/login/', response.url)
+
+
+# ---------------------------------------------------------------------------
+# Transaction description storage (deposit / withdraw / transfer / API)
+# ---------------------------------------------------------------------------
+
+class TransactionDescriptionTests(TestCase):
+    """Description is stored on the Transaction itself: service-level
+    deposit/withdraw/transfer calls persist it, a missing description is
+    stored as '' (never None) and the deposit API accepts an optional
+    description field."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='memo-owner', email='memo-owner@example.com',
+            password='password123', role='CUSTOMER')
+        self.admin_user = User.objects.create_user(
+            username='memo-admin', email='memo-admin@example.com',
+            password='password123', role='ADMIN')
+        self.service = WalletService()
+        self.admin_service = AdminWalletService()
+        self.wallet = self.service.create_wallet(self.user, 'USD')
+        # Fund the wallet (also gives the withdraw test its 1000 to pull).
+        self.admin_service.adjust_balance(self.admin_user, self.wallet.id,
+                                          Decimal('1000'), 'Test funding')
+
+    def test_deposit_stores_description(self):
+        txn = self.service.deposit(self.user, self.wallet.id, Decimal('500'),
+                                   description='first salary', idempotency_key='d1')
+        self.assertEqual(txn.description, 'first salary')
+        self.assertEqual(txn.status, Transaction.Status.COMPLETED)
+
+    def test_withdraw_stores_description(self):
+        txn = self.service.withdraw(self.user, self.wallet.id, Decimal('1000'),
+                                    description='rent', idempotency_key='w1')
+        self.assertEqual(txn.description, 'rent')
+        self.assertEqual(txn.status, Transaction.Status.COMPLETED)
+
+    def test_transfer_stores_description(self):
+        other = User.objects.create_user(
+            username='memo-receiver', email='memo-receiver@example.com',
+            password='password123', role='CUSTOMER')
+        receiver_wallet = self.service.create_wallet(other, 'USD')
+
+        txn = self.service.transfer(self.user, self.wallet.id, receiver_wallet.id,
+                                    Decimal('100'), 'lunch split')
+        self.assertEqual(txn.description, 'lunch split')
+        # Ledger stays a single DEBIT + CREDIT pair for this transfer.
+        entries = WalletTransaction.objects.filter(transaction=txn)
+        self.assertEqual(entries.count(), 2)
+        self.assertEqual(
+            entries.filter(entry_type=WalletTransaction.EntryType.DEBIT).count(), 1)
+        self.assertEqual(
+            entries.filter(entry_type=WalletTransaction.EntryType.CREDIT).count(), 1)
+
+    def test_empty_description_stored_as_blank(self):
+        # No description passed -> stored as '' (not None).
+        txn = self.service.deposit(self.user, self.wallet.id, Decimal('100'))
+        self.assertEqual(txn.description, '')
+
+    def test_api_deposit_accepts_description(self):
+        client = APIClient()
+        client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {RefreshToken.for_user(self.user).access_token}')
+        response = client.post(
+            f'/api/wallets/{self.wallet.id}/deposit/',
+            {'amount': '100.00', 'description': 'api memo'})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['description'], 'api memo')
+        self.assertEqual(response.data['status'], Transaction.Status.COMPLETED)
+
+
+# ---------------------------------------------------------------------------
+# Dashboard: selected-currency totals + fallback
+# ---------------------------------------------------------------------------
+
+class DashboardCurrencyTotalTests(TestCase):
+    """GET /dashboard/ passes total_balance (sum of the SELECTED currency's
+    wallets), selected_currency and currencies. The default selected currency
+    is the first wallet's currency (falling back to the settings default when
+    the user has no wallets); an invalid ?currency= falls back to the default.
+    Uses TestCase's default django.test.Client so response.context is kept."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='dashboard-owner', email='dashboard-owner@example.com',
+            password='password123', role='CUSTOMER')
+        self.admin_user = User.objects.create_user(
+            username='dashboard-admin', email='dashboard-admin@example.com',
+            password='password123', role='ADMIN')
+        self.service = WalletService()
+        self.admin_service = AdminWalletService()
+        self.pkr_wallet = self.service.create_wallet(self.user, 'PKR')
+        self.usd_wallet = self.service.create_wallet(self.user, 'USD')
+        self.admin_service.adjust_balance(self.admin_user, self.usd_wallet.id,
+                                          Decimal('2500.00'), 'Dashboard funding')
+
+    def test_default_selected_currency_is_first_wallet(self):
+        self.client.force_login(self.user)
+        r = self.client.get('/dashboard/')
+        # PKR is the first wallet created, so it is selected by default and
+        # its total (0.00) is what the stat card shows.
+        self.assertEqual(r.context['selected_currency'], 'PKR')
+        self.assertEqual(r.context['total_balance'], Decimal('0'))
+        # Rendered HTML: PKR total 0.00 AND the USD wallet card's own 2500.00.
+        self.assertContains(r, '0.00')
+        self.assertContains(r, '2500.00')
+
+    def test_currency_param_switches_total(self):
+        self.client.force_login(self.user)
+        r = self.client.get('/dashboard/?currency=USD')
+        self.assertEqual(r.context['selected_currency'], 'USD')
+        self.assertEqual(r.context['total_balance'], Decimal('2500.00'))
+
+    def test_invalid_currency_falls_back(self):
+        self.client.force_login(self.user)
+        r = self.client.get('/dashboard/?currency=XXX')
+        self.assertEqual(r.context['selected_currency'], 'PKR')
+        self.assertEqual(r.context['total_balance'], Decimal('0'))
+
+    def test_wallet_less_user_total_zero(self):
+        new_user = User.objects.create_user(
+            username='no-wallets', email='no-wallets@example.com',
+            password='password123', role='CUSTOMER')
+        self.client.force_login(new_user)
+        r = self.client.get('/dashboard/')
+        self.assertEqual(r.context['total_balance'], Decimal('0'))
+        self.assertEqual(r.context['selected_currency'],
+                         settings.DEFAULT_WALLET_CURRENCY)
+
+
+class OpenWalletPageTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='owuser', email='ow@example.com', password='pass12345', role='CUSTOMER')
+        self.client.login(username='owuser', password='pass12345')
+
+    def test_page_renders_currency_dropdown(self):
+        r = self.client.get('/open-wallet/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn('name="currency"', html)
+        self.assertIn('PKR', html)
+        self.assertIn('USD', html)
+
+    def test_unsupported_currency_rejected(self):
+        r = self.client.post('/wallets/create/', {'currency': 'XRP'})
+        self.assertFalse(Wallet.objects.filter(user=self.user, currency='XRP').exists())
+        self.assertNotIn(r.status_code, (200, 500))

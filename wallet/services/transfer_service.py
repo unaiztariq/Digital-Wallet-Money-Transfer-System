@@ -29,7 +29,8 @@ class TransferService:
             if sender.balance < amount: raise InsufficientBalance('Insufficient balance')
             if wallets.sum_debits_for_date(sender.id, timezone.localdate(), Transaction.Type.TRANSFER) + amount > config.max_daily_transfer: raise LimitExceeded('max_daily_transfer')
             txn = transactions.create_transaction(reference=transactions.next_reference(timezone.localdate()), sender_wallet=sender, receiver_wallet=receiver,
-                type=Transaction.Type.TRANSFER, amount=amount, currency=sender.currency, idempotency_key=idempotency_key)
+                type=Transaction.Type.TRANSFER, amount=amount, currency=sender.currency, description=description,
+                idempotency_key=idempotency_key)
             try:
                 with transaction.atomic():
                     sender_balance, receiver_balance = sender.balance - amount, receiver.balance + amount

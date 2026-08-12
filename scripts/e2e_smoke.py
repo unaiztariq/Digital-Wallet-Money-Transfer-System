@@ -6,7 +6,7 @@ through the real HTTP stack — ``django.test.Client`` runs the complete
 middleware chain (sessions, CSRF, the idempotency middleware, DRF auth + the
 custom exception handler) exactly as a browser would.
 
-It uses the configured database (.env -> MySQL by default). Each run creates
+It uses the configured database (.env -> MySQL by default). Each run create
 throwaway ``smoke_*`` users so repeated runs do not collide.
 
 Usage (from the project root):
@@ -149,7 +149,7 @@ def step1_register_users_and_wallets():
 def step2_deposit_idempotency():
     """Deposit 5000 with Idempotency-Key k1: 201, replay (no double credit), different payload -> 400."""
     url = f'/api/wallets/{S["wallet_a"]}/deposit/'
-    payload = json.dumps({'amount': '5000.0000'})
+    payload = json.dumps({'amount': '5000.0000', 'description': 'smoke deposit'})
     headers = {'HTTP_X_CSRFTOKEN': csrf_token(S['client_a']), 'HTTP_IDEMPOTENCY_KEY': ikey('k1')}
 
     r1 = S['client_a'].post(url, data=payload, content_type='application/json', **headers)
@@ -158,6 +158,8 @@ def step2_deposit_idempotency():
     check('replay same key+payload -> 201 with identical stored body',
           r2.status_code == 201 and get_body(r1) == get_body(r2),
           f'status={r2.status_code}')
+    check('deposit memo stored', get_body(r1).get('description') == 'smoke deposit',
+          f'description={get_body(r1).get("description")!r}')
     S['bal_a'] += Decimal('5000.0000')
 
     r = api_get(S['client_a'], f'/api/wallets/{S["wallet_a"]}/')
@@ -173,11 +175,14 @@ def step2_deposit_idempotency():
 
 def step3_withdraw():
     """Withdraw 1000 (balance 4000); withdraw above balance -> 400 InsufficientBalance."""
-    r = api_post(S['client_a'], f'/api/wallets/{S["wallet_a"]}/withdraw/', {'amount': '1000.0000'}, key=ikey('k2'))
+    r = api_post(S['client_a'], f'/api/wallets/{S["wallet_a"]}/withdraw/',
+                 {'amount': '1000.0000', 'description': 'smoke withdraw'}, key=ikey('k2'))
     ok = r.status_code == 201
     if ok:
         S['bal_a'] -= Decimal('1000.0000')
     check('withdraw 1000 -> 201', ok, f'status={r.status_code} body={get_body(r)}')
+    check('withdraw memo stored', get_body(r).get('description') == 'smoke withdraw',
+          f'description={get_body(r).get("description")!r}')
 
     r = api_post(S['client_a'], f'/api/wallets/{S["wallet_a"]}/withdraw/', {'amount': '5000.0000'}, key=ikey('k3'))
     body = get_body(r)
@@ -198,6 +203,8 @@ def step4_transfer():
     check('transfer 3000 A->B -> 201', ok, f'status={r.status_code} body={get_body(r)}')
     if not ok:
         return
+    check('transfer memo stored', get_body(r).get('description') == 'smoke transfer',
+          f'description={get_body(r).get("description")!r}')
 
     wa = Wallet.objects.get(pk=S['wallet_a'])
     wb = Wallet.objects.get(pk=S['wallet_b'])
@@ -347,7 +354,11 @@ def step8_pages():
     """Server-rendered pages: status codes, admin guard, anonymous redirects."""
     r = S['client_a'].get('/dashboard/')
     check('GET /dashboard/ -> 200 for logged-in A', r.status_code == 200, f'status={r.status_code}')
-    check('/dashboard/ contains wallet balance', f'{S["bal_a"]:.2f}' in r.content.decode(),
+
+    # The stat card defaults to A's first wallet currency (PKR, balance 0.00);
+    # request the USD currency explicitly to assert the USD total renders.
+    r = S['client_a'].get('/dashboard/?currency=USD')
+    check('GET /dashboard/?currency=USD contains USD total balance', f'{S["bal_a"]:.2f}' in r.content.decode(),
           f'expected balance {S["bal_a"]}')
 
     r = S['client_a'].get('/transfer/')

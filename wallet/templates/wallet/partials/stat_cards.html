@@ -20,9 +20,23 @@ Context (all optional; each card only renders when its data is provided):
       {% else %}0.00{% endif %}
     </div>
     <div class="stat-meta">
-      {% if wallets %}{{ wallets.0.currency }} wallet{% if wallets|length > 1 %} · {{ wallets|length }} wallets{% endif %}
+      {% if selected_currency %}{{ selected_currency }} wallet
+      {% elif wallets %}{{ wallets.0.currency }} wallet{% if wallets|length > 1 %} · {{ wallets|length }} wallets{% endif %}
       {% else %}{{ currency|default:"USD" }}{% endif %}
     </div>
+    {% if currencies|length > 1 %}
+    <form class="mt-2" method="get" action="{% url 'dashboard' %}">
+      <label class="form-label" for="stat-currency">Currency</label>
+      <select class="select" id="stat-currency" name="currency" onchange="this.form.submit()">
+        {% for code in currencies %}
+        <option value="{{ code }}"{% if code == selected_currency %} selected{% endif %}>{{ code }}</option>
+        {% endfor %}
+      </select>
+      <noscript>
+        <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+      </noscript>
+    </form>
+    {% endif %}
   </article>
   {% endif %}
 

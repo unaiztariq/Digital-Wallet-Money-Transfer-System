@@ -4,9 +4,10 @@ from django.db.models import Q
 from wallet.models import DailyCounter, Transaction, WalletTransaction
 
 
-def create_transaction(*, reference, sender_wallet, receiver_wallet, type, amount, currency, idempotency_key=None):
+def create_transaction(*, reference, sender_wallet, receiver_wallet, type, amount, currency, description=None, idempotency_key=None):
     return Transaction.objects.create(reference=reference, sender_wallet=sender_wallet, receiver_wallet=receiver_wallet,
-        type=type, amount=amount, currency=currency, idempotency_key=idempotency_key, status=Transaction.Status.PENDING)
+        type=type, amount=amount, currency=currency, description=description or '', idempotency_key=idempotency_key,
+        status=Transaction.Status.PENDING)
 
 
 def create_wallet_transaction(transaction, wallet, entry_type, amount, balance_after):
