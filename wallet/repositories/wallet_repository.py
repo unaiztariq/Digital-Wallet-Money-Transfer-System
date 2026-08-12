@@ -7,11 +7,20 @@ from django.utils import timezone
 
 from wallet.models import Transaction, Wallet, WalletConfiguration, WalletTransaction
 from wallet.repositories.errors import BusinessRuleError, PermissionDenied, WalletNotFound
+from wallet.models import SavedRecipient
+from django.db import IntegrityError
 
 
 def get_wallet_or_raise(wallet_id):
     try:
         return Wallet.objects.get(pk=wallet_id)
+    except Wallet.DoesNotExist as exc:
+        raise WalletNotFound('Wallet not found') from exc
+
+
+def get_wallet_by_reference(reference_id):
+    try:
+        return Wallet.objects.get(reference_id=reference_id)
     except Wallet.DoesNotExist as exc:
         raise WalletNotFound('Wallet not found') from exc
 
@@ -58,3 +67,20 @@ def create_wallet(user, currency):
         return Wallet.objects.create(user=user, currency=currency, config=WalletConfiguration.get_config())
     except IntegrityError as exc:
         raise BusinessRuleError('A wallet already exists for this currency') from exc
+
+
+def get_saved_recipients_for_sender_wallet(sender_wallet_id):
+    rows = SavedRecipient.objects.filter(sender_wallet_id=sender_wallet_id).select_related('recipient_wallet__user', 'recipient_wallet')
+    return [r.recipient_wallet for r in rows]
+
+
+def create_saved_recipient(sender_wallet, recipient_wallet):
+    try:
+        obj, _ = SavedRecipient.objects.get_or_create(sender_wallet=sender_wallet, recipient_wallet=recipient_wallet)
+        return obj
+    except IntegrityError:
+        return SavedRecipient.objects.filter(sender_wallet=sender_wallet, recipient_wallet=recipient_wallet).first()
+
+
+def delete_saved_recipient(sender_wallet_id, recipient_wallet_id):
+    SavedRecipient.objects.filter(sender_wallet_id=sender_wallet_id, recipient_wallet_id=recipient_wallet_id).delete()

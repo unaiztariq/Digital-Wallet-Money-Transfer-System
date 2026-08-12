@@ -12,6 +12,7 @@ from django.shortcuts import redirect, render
 from wallet.api.serializers import HistoryFilterSerializer
 from wallet.models import ExchangeRate, Transaction, User, Wallet
 from wallet.repositories.errors import BusinessRuleError, InvalidAmount
+from wallet.repositories import wallet_repository as wallets
 from wallet.services.admin_wallet_service import AdminWalletService
 from wallet.services.transaction_service import TransactionService
 from wallet.services.wallet_service import WalletService
@@ -82,10 +83,14 @@ def dashboard(request):
 @login_required
 def transfer(request):
     wallets = _present_wallets(WalletService().list_wallets(request.user))
+    selected = _selected_wallet(request, wallets)
+    saved = []
+    if selected:
+        saved = _present_wallets(WalletService().list_saved_recipients_for_wallet(selected.id))
     return render(request, 'wallet/transfer.html', {
         'wallets': wallets,
-        'selected_wallet': _selected_wallet(request, wallets),
-        'recipient_wallets': _present_wallets(WalletService().list_recipient_wallets(request.user)),
+        'selected_wallet': selected,
+        'recipient_wallets': saved,
     })
 
 
@@ -234,3 +239,18 @@ def wallet_create(request):
     except (InvalidAmount, BusinessRuleError) as exc:
         messages.error(request, str(exc))
     return redirect('dashboard')
+
+
+@login_required
+def remove_saved_recipient(request):
+    if request.method != 'POST':
+        return redirect('transfer')
+    sender_wallet_id = request.POST.get('sender_wallet_id')
+    recipient_wallet_id = request.POST.get('recipient_wallet_id')
+    if sender_wallet_id and recipient_wallet_id:
+        try:
+            wallets.delete_saved_recipient(sender_wallet_id, recipient_wallet_id)
+            messages.success(request, 'Saved recipient removed')
+        except Exception:
+            messages.error(request, 'Failed to remove saved recipient')
+    return redirect('transfer')

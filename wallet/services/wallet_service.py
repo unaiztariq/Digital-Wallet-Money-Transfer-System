@@ -43,6 +43,7 @@ class WalletService:
         return wallets.get_wallets_for_user(user)
 
     def list_recipient_wallets(self, user):
+        # Deprecated: retain for compatibility. Prefer per-wallet saved recipients.
         return Wallet.objects.filter(status=Wallet.Status.ACTIVE).exclude(user=user).order_by('user__username', 'created_at')
 
     def _replay(self, wallet_id, key):
@@ -97,6 +98,9 @@ class WalletService:
             txn.status = Transaction.Status.COMPLETED; txn.save(update_fields=['status', 'updated_at'])
             return txn
 
-    def transfer(self, user, sender_wallet_id, recipient_wallet_id, amount, description=None, idempotency_key=None):
+    def transfer(self, user, sender_wallet_id, recipient_wallet_id=None, recipient_reference=None, amount=None, description=None, idempotency_key=None):
         from wallet.services.transfer_service import TransferService
-        return TransferService().transfer(user, sender_wallet_id, recipient_wallet_id, amount, description, idempotency_key)
+        return TransferService().transfer(user, sender_wallet_id, recipient_wallet_id=recipient_wallet_id, recipient_reference=recipient_reference, amount=amount, description=description, idempotency_key=idempotency_key)
+
+    def list_saved_recipients_for_wallet(self, sender_wallet_id):
+        return wallets.get_saved_recipients_for_sender_wallet(sender_wallet_id)

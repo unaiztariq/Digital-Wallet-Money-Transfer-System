@@ -76,6 +76,8 @@ class Wallet(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wallets')
+    # Public, shareable, non-guessable reference ID used for transfers. Immutable.
+    reference_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     currency = models.CharField(max_length=3)
     status = models.CharField(max_length=6, choices=Status.choices, default=Status.ACTIVE)
     balance = models.DecimalField(max_digits=18, decimal_places=4, default=0)
@@ -151,6 +153,24 @@ class WalletTransaction(models.Model):
             models.CheckConstraint(condition=Q(entry_type__in=['DEBIT', 'CREDIT']), name='ck_wallet_transaction_entry_type_valid'),
         ]
         indexes = [models.Index(fields=['wallet', 'created_at'])]
+
+
+class SavedRecipient(models.Model):
+    """Per-sender-wallet saved recipient list.
+
+    Each row represents that `sender_wallet` has previously sent funds to
+    `recipient_wallet`. This is scoped per wallet (not per user).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sender_wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='saved_recipients')
+    recipient_wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['sender_wallet', 'recipient_wallet'], name='uniq_sender_recipient'),
+        ]
+        indexes = [models.Index(fields=['sender_wallet', 'created_at'])]
 
 
 class DailyCounter(models.Model):

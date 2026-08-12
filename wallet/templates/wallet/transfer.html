@@ -51,15 +51,28 @@
         </div>
 
         <div class="form-field full">
-          <label class="form-label form-label-required" for="tx-recipient">Recipient wallet</label>
-          <select class="select" id="tx-recipient" name="recipient_wallet_id" required>
-            <option value="">Select a recipient wallet…</option>
+          <label class="form-label form-label-required" for="tx-recipient-ref">Recipient reference ID</label>
+          <input class="input mono" id="tx-recipient-ref" name="recipient_reference" placeholder="Enter recipient reference ID" />
+          <div class="form-help">Or choose a saved recipient below. Reference IDs are shareable and non-guessable.</div>
+        </div>
+
+        <div class="form-field full">
+          <label class="form-label" for="tx-recipient">Saved recipients</label>
+          <select class="select" id="tx-recipient" name="recipient_wallet_id">
+            <option value="">Select a saved recipient…</option>
             {% for rw in recipient_wallets %}
-            <option value="{{ rw.id }}">{{ rw.owner.username }} — {{ rw.currency }} wallet</option>
+            <option value="{{ rw.id }}">{{ rw.owner.username|slice:":1" }}**** — {{ rw.currency }} wallet</option>
             {% endfor %}
           </select>
           {% if not recipient_wallets %}
-          <div class="form-help">No other wallets are available to receive funds yet.</div>
+          <div class="form-help">No saved recipients for this wallet yet.</div>
+          {% else %}
+          <form id="remove-recipient-form" method="post" action="/saved-recipient/remove/" style="display:inline-block;margin-top:.5rem;">
+            {% csrf_token %}
+            <input type="hidden" name="sender_wallet_id" value="{{ selected_wallet.id }}" />
+            <input type="hidden" id="remove-recipient-id" name="recipient_wallet_id" value="" />
+            <button type="button" class="btn btn-ghost btn-sm" id="remove-recipient-btn">✕ Remove selected</button>
+          </form>
           {% endif %}
         </div>
 
@@ -156,18 +169,19 @@
     var form = document.getElementById('transfer-form');
     if (!form) { return; }
 
-    form.addEventListener('submit', function (event) {
+      form.addEventListener('submit', function (event) {
       event.preventDefault();
 
       var formData = new FormData(form);
       var data = {
         recipient_wallet_id: formData.get('recipient_wallet_id'),
+        recipient_reference: formData.get('recipient_reference'),
         amount: formData.get('amount'),
         description: formData.get('description') || ''
       };
 
-      if (!data.recipient_wallet_id) {
-        window.walletToast('Choose a recipient wallet.', 'error');
+      if (!data.recipient_wallet_id && !data.recipient_reference) {
+        window.walletToast('Enter a recipient reference or choose a saved recipient.', 'error');
         return;
       }
       if (!data.amount || Number(data.amount) <= 0) {

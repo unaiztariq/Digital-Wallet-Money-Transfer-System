@@ -6,7 +6,7 @@ from wallet.models import Transaction, User, Wallet
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet
-        fields = ('id', 'currency', 'status', 'balance', 'created_at', 'updated_at')
+        fields = ('id', 'reference_id', 'currency', 'status', 'balance', 'created_at', 'updated_at')
 
 
 class WalletCreateSerializer(serializers.Serializer):
@@ -29,9 +29,17 @@ class WithdrawSerializer(DepositSerializer):
 
 
 class TransferSerializer(serializers.Serializer):
-    recipient_wallet_id = serializers.UUIDField()
+    # Primary way: recipient_reference (shareable, non-guessable). For saved
+    # recipients the client may send `recipient_wallet_id` (UUID) as a shortcut.
+    recipient_reference = serializers.UUIDField(required=False)
+    recipient_wallet_id = serializers.UUIDField(required=False)
     amount = serializers.DecimalField(max_digits=18, decimal_places=4)
     description = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+    def validate(self, attrs):
+        if not attrs.get('recipient_reference') and not attrs.get('recipient_wallet_id'):
+            raise serializers.ValidationError('Either recipient_reference or recipient_wallet_id must be provided')
+        return attrs
 
 
 class TransactionSerializer(serializers.ModelSerializer):
