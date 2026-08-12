@@ -95,6 +95,15 @@
 
       <div class="page">
 
+        {% if messages %}
+        {% for message in messages %}
+        <div class="role-note role-note--{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}error{% else %}info{% endif %} mb-4" role="status">
+          <i class="ti {% if message.tags == 'success' %}ti-circle-check{% elif message.tags == 'error' %}ti-alert-triangle{% else %}ti-info-circle{% endif %}"></i>
+          <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+
         {% block page_header %}
         <header class="page-header">
           <div class="page-header-copy">

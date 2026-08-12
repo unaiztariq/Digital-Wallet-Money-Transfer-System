@@ -1,13 +1,17 @@
 from decimal import Decimal
 
 from django import forms
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
+from django.db import transaction
 from django.shortcuts import redirect, render
 
 from wallet.api.serializers import HistoryFilterSerializer
 from wallet.models import Transaction, User
+from wallet.repositories.errors import BusinessRuleError, InvalidAmount
 from wallet.services.admin_wallet_service import AdminWalletService
 from wallet.services.transaction_service import TransactionService
 from wallet.services.wallet_service import WalletService
@@ -176,11 +180,27 @@ class WalletRegistrationForm(forms.Form):
 def register(request):
     form = WalletRegistrationForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        get_user_model().objects.create_user(
-            role=User.Role.CUSTOMER,
-            username=form.cleaned_data['username'],
-            email=form.cleaned_data['email'],
-            password=form.cleaned_data['password'],
-        )
+        with transaction.atomic():
+            user = get_user_model().objects.create_user(
+                role=User.Role.CUSTOMER,
+                username=form.cleaned_data['username'],
+                email=form.cleaned_data['email'],
+                password=form.cleaned_data['password'],
+            )
+            WalletService().create_wallet(user, settings.DEFAULT_WALLET_CURRENCY)
         return redirect('login')
     return render(request, 'wallet/register.html', {'form': form})
+
+
+@login_required
+def wallet_create(request):
+    """Opens a wallet for the given 3-letter currency code (page form)."""
+    if request.method != 'POST':
+        return redirect('dashboard')
+    currency = (request.POST.get('currency') or '').strip().upper()
+    try:
+        WalletService().create_wallet(request.user, currency)
+        messages.success(request, f'{currency} wallet opened.')
+    except (InvalidAmount, BusinessRuleError) as exc:
+        messages.error(request, str(exc))
+    return redirect('dashboard')

@@ -18,6 +18,10 @@
   <i class="ti ti-list-details"></i>
   <span class="btn-label">Transactions</span>
 </a>
+<a href="#open-wallet" class="btn btn-ghost">
+  <i class="ti ti-wallet"></i>
+  <span class="btn-label">Open wallet</span>
+</a>
 {% endblock %}
 
 {% block content %}
@@ -25,6 +29,28 @@
   {% include "wallet/partials/stat_cards.html" %}
 
   {% include "wallet/partials/wallet_cards.html" %}
+
+  <section id="open-wallet" class="panel mt-5" aria-label="Open a wallet">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">{% if wallets %}Open another wallet{% else %}Open your first wallet{% endif %}</div>
+        <div class="panel-subtitle">A new wallet for a different currency — one wallet per currency, balances are kept separate.</div>
+      </div>
+      <span class="mono text-muted">POST /wallets/create/</span>
+    </div>
+    <div class="card-body">
+      <form class="form" method="post" action="{% url 'wallet_create' %}">
+        {% csrf_token %}
+        <div class="flex items-center gap-2">
+          <input class="input" type="text" name="currency" maxlength="3" pattern="[A-Za-z]{3}" placeholder="PKR" autocomplete="off" required aria-label="Currency code">
+          <button type="submit" class="btn btn-primary">
+            <i class="ti ti-plus"></i>
+            <span class="btn-label">Open wallet</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
 
   <section class="panel mt-5" aria-label="Recent transactions">
     <div class="panel-header">

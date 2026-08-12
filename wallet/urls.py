@@ -9,6 +9,7 @@ urlpatterns = [
     # @login_required; the canonical, named path is /dashboard/.
     path('', views.dashboard),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('wallets/create/', views.wallet_create, name='wallet_create'),
     path('transfer/', views.transfer, name='transfer'),
     path('deposit/', views.deposit, name='deposit'),
     path('withdraw/', views.withdraw, name='withdraw'),

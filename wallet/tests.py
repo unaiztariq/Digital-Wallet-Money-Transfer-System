@@ -35,7 +35,9 @@ import threading
 import uuid
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.db import close_old_connections
 from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
@@ -718,3 +720,70 @@ class EdgeCaseTests(TestCase):
         with self.assertRaises(WalletNotFound):
             self.admin_service.adjust_balance(self.admin_user, missing,
                                               Decimal('100'), 'Missing wallet')
+
+
+# ---------------------------------------------------------------------------
+# Auto-created default wallet + page-level wallet creation
+# ---------------------------------------------------------------------------
+
+class RegistrationWalletTests(TestCase):
+    """Every new account gets a default PKR wallet (web and API), and the
+    wallet_create page view opens wallets for additional currencies."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='owner', email='owner@example.com',
+            password='password123', role='CUSTOMER')
+        self.wallet = WalletService().create_wallet(self.user, 'USD')
+
+    def test_web_register_auto_creates_default_wallet(self):
+        self.client.logout()
+        response = self.client.post('/accounts/register/', {
+            'username': 'webuser', 'email': 'webuser@example.com',
+            'password': 'securepass123', 'password_confirm': 'securepass123'})
+        self.assertRedirects(response, '/accounts/login/')
+        wallet = Wallet.objects.get(user__username='webuser')
+        self.assertEqual(wallet.currency, settings.DEFAULT_WALLET_CURRENCY)
+        self.assertEqual(wallet.balance, Decimal('0'))
+        self.assertEqual(wallet.status, Wallet.Status.ACTIVE)
+
+    def test_api_register_auto_creates_default_wallet(self):
+        response = self.client.post('/api/auth/register/', {
+            'username': 'apiuser', 'email': 'apiuser@example.com',
+            'password': 'securepass123'})
+        self.assertEqual(response.status_code, 201)
+        wallet = Wallet.objects.get(user__username='apiuser')
+        self.assertEqual(wallet.currency, settings.DEFAULT_WALLET_CURRENCY)
+
+    def test_wallet_create_page_opens_new_currency(self):
+        self.client.force_login(self.user)
+        response = self.client.post('/wallets/create/', {'currency': 'EUR'})
+        self.assertRedirects(response, '/dashboard/')
+        self.assertTrue(Wallet.objects.filter(user=self.user, currency='EUR').exists())
+
+    def test_wallet_create_page_duplicate_currency_fails_gracefully(self):
+        self.client.force_login(self.user)
+        response = self.client.post('/wallets/create/', {'currency': 'USD'})
+        self.assertRedirects(response, '/dashboard/')
+        messages = [m for m in get_messages(response.wsgi_request)]
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].level_tag, 'error')
+        self.assertEqual(Wallet.objects.filter(user=self.user).count(), 1)
+
+    def test_wallet_create_page_rejects_bad_currency(self):
+        self.client.force_login(self.user)
+        response = self.client.post('/wallets/create/', {'currency': 'U'})
+        self.assertRedirects(response, '/dashboard/')
+        self.assertEqual(Wallet.objects.filter(user=self.user).count(), 1)
+
+    def test_wallet_create_page_get_redirects_to_dashboard(self):
+        self.client.force_login(self.user)
+        response = self.client.get('/wallets/create/')
+        self.assertRedirects(response, '/dashboard/')
+
+    def test_wallet_create_page_requires_login(self):
+        self.client.logout()
+        response = self.client.post('/wallets/create/', {'currency': 'EUR'})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)

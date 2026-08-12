@@ -1086,6 +1086,33 @@ textarea::placeholder {
   color: var(--text-muted);
 }
 
+.role-note--success {
+  border-color: var(--status-completed-border);
+  color: var(--status-completed);
+}
+
+.role-note--success .ti {
+  color: var(--status-completed);
+}
+
+.role-note--error {
+  border-color: var(--status-failed-border);
+  color: var(--status-failed);
+}
+
+.role-note--error .ti {
+  color: var(--status-failed);
+}
+
+.role-note--info {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.role-note--info .ti {
+  color: var(--text-muted);
+}
+
 .admin-table {
   min-width: 700px;
 }

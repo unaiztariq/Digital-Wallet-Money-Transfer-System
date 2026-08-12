@@ -154,3 +154,6 @@ REST_FRAMEWORK = {
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Default currency for the wallet auto-created when a new account registers.
+DEFAULT_WALLET_CURRENCY = 'PKR'

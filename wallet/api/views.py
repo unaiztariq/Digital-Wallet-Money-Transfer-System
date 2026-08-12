@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -28,7 +30,9 @@ class RegisterAPIView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = get_user_model().objects.create_user(role='CUSTOMER', **serializer.validated_data)
+        with transaction.atomic():
+            user = get_user_model().objects.create_user(role='CUSTOMER', **serializer.validated_data)
+            WalletService().create_wallet(user, settings.DEFAULT_WALLET_CURRENCY)
         return Response(UserAdminSerializer(user).data, status=status.HTTP_201_CREATED)
 
 

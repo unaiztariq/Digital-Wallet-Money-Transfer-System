@@ -30,7 +30,11 @@ class WalletService:
             existing.status = Wallet.Status.ACTIVE
             existing.save(update_fields=['status', 'updated_at'])
             return existing
-        return wallets.create_wallet(user, currency)
+        # Own savepoint so a duplicate-currency IntegrityError rolls back before
+        # being converted to BusinessRuleError — otherwise the caller's
+        # transaction is left poisoned and the next query 500s.
+        with transaction.atomic():
+            return wallets.create_wallet(user, currency)
 
     def get_wallet(self, user, wallet_id):
         return wallets.get_wallet_for_user_or_raise(wallet_id, user)

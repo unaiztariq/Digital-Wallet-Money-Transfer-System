@@ -116,6 +116,17 @@ def step1_register_users_and_wallets():
     check('login A via session (Client.login)', S['client_a'].login(username=S['username_a'], password=password))
     check('login B via session (Client.login)', S['client_b'].login(username=S['username_b'], password=password))
 
+    # Registration must auto-create the default (PKR) wallet for both users.
+    r = api_get(S['client_a'], '/api/wallets/')
+    auto_pkr = [w for w in get_body(r) if w.get('currency') == 'PKR']
+    check('register auto-creates default PKR wallet', r.status_code == 200 and auto_pkr,
+          f'status={r.status_code} wallets={get_body(r)}')
+
+    r = api_get(S['client_b'], '/api/wallets/')
+    auto_pkr_b = [w for w in get_body(r) if w.get('currency') == 'PKR']
+    check('register auto-creates default PKR wallet for B', r.status_code == 200 and auto_pkr_b,
+          f'status={r.status_code} wallets={get_body(r)}')
+
     r = api_post(S['client_a'], '/api/wallets/', {'currency': 'USD'})
     S['wallet_a'] = get_body(r).get('id')
     check('create USD wallet for A -> 201', r.status_code == 201 and S['wallet_a'], f'status={r.status_code}')
